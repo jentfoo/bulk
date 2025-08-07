@@ -4,29 +4,34 @@ package bulk
 // May return the original slice if all elements pass (no allocation).
 func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 	for falseIndex, v := range slice {
-		if !predicate(v) {
-			if falseIndex == 0 {
-				// iterate until a true result is found, then start appending at that point
-				var result []T
-				for i := falseIndex + 1; i < len(slice); i++ {
-					if predicate(slice[i]) {
-						if result == nil {
-							result = make([]T, 0, capGuess(len(slice)-i))
-						}
-						result = append(result, slice[i])
+		if predicate(v) {
+			continue // continue till first false is found
+		}
+
+		// build and return result
+		if falseIndex == 0 {
+			// iterate until a true result is found, then start appending at that point
+			var result []T
+			for i := falseIndex + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					// TODO - track true start section, if possible to return a view with the head and tail truncated, avoid the allocation
+					if result == nil {
+						result = make([]T, 0, capGuess(len(slice)-i))
 					}
+					result = append(result, slice[i])
 				}
-				return result
-			} else {
-				// copy all records that already passed, and then finish iteration to produce result
-				result := append(make([]T, 0, falseIndex+capGuess(len(slice)-falseIndex-1)), slice[:falseIndex]...)
-				for i := falseIndex + 1; i < len(slice); i++ {
-					if predicate(slice[i]) {
-						result = append(result, slice[i])
-					}
-				}
-				return result
 			}
+			return result
+		} else {
+			// copy all records that already passed, and then finish iteration to produce result
+			result := append(make([]T, 0, falseIndex+capGuess(len(slice)-falseIndex-1)), slice[:falseIndex]...)
+			for i := falseIndex + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					// TODO - track true start section, if possible to return a view with the head and tail truncated, avoid the allocation
+					result = append(result, slice[i])
+				}
+			}
+			return result
 		}
 	}
 	return slice // all records tested to true
@@ -194,15 +199,8 @@ func SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T,
 	}
 }
 
-// SliceReverseInPlace reverses elements in-place.
-func SliceReverseInPlace[T any](s []T) {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-}
-
-// SliceConversion transforms each element using the conversion function.
-func SliceConversion[I any, R any](input []I, conversion func(I) R) []R {
+// SliceTransform converts each element using the conversion function.
+func SliceTransform[I any, R any](input []I, conversion func(I) R) []R {
 	result := make([]R, len(input))
 	for i, v := range input {
 		result[i] = conversion(v)

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var sliceLargeInput = []int{
@@ -207,64 +206,29 @@ func TestSliceSplitInPlaceUnstable(t *testing.T) {
 	}
 }
 
-func TestSliceReverseInPlace(t *testing.T) {
-	t.Parallel()
-
-	t.Run("nil", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			var nilSlice []int
-			SliceReverseInPlace(nilSlice)
-		})
-	})
-
-	t.Run("empty", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			SliceReverseInPlace([]string{})
-		})
-	})
-
-	t.Run("single", func(t *testing.T) {
-		require.NotPanics(t, func() {
-			SliceReverseInPlace([]string{"foo"})
-		})
-	})
-
-	t.Run("strings", func(t *testing.T) {
-		arr := []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
-		SliceReverseInPlace(arr)
-		assert.Equal(t, []string{"Sun", "Sat", "Fri", "Thu", "Wed", "Tue", "Mon"}, arr)
-	})
-
-	t.Run("numbers", func(t *testing.T) {
-		numbers := []int{1, 2, 3, 5, 8, 13}
-		SliceReverseInPlace(numbers)
-		assert.Equal(t, []int{13, 8, 5, 3, 2, 1}, numbers)
-	})
-}
-
-func TestSliceConversion(t *testing.T) {
+func TestSliceTransform(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		var input []int
-		result := SliceConversion(input, func(i int) int { return i })
+		result := SliceTransform(input, func(i int) int { return i })
 		assert.Empty(t, result)
 	})
 
 	t.Run("empty", func(t *testing.T) {
-		result := SliceConversion([]int{}, func(i int) int { return i })
+		result := SliceTransform([]int{}, func(i int) int { return i })
 		assert.Empty(t, result)
 	})
 
 	t.Run("int_to_string", func(t *testing.T) {
 		input := []int{1, 2, 3}
-		result := SliceConversion(input, func(i int) string { return strconv.Itoa(i) })
+		result := SliceTransform(input, func(i int) string { return strconv.Itoa(i) })
 		assert.Equal(t, []string{"1", "2", "3"}, result)
 	})
 
 	t.Run("float_to_int", func(t *testing.T) {
 		input := []float64{1.1, 2.2}
-		result := SliceConversion(input, func(f float64) int { return int(f) })
+		result := SliceTransform(input, func(f float64) int { return int(f) })
 		assert.Equal(t, []int{1, 2}, result)
 	})
 }
