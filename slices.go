@@ -210,6 +210,46 @@ func SliceConversion[I any, R any](input []I, conversion func(I) R) []R {
 	return result
 }
 
+// SliceUnion returns all values combined into a single slice.
+func SliceUnion[T comparable](slices ...[]T) []T {
+	switch len(slices) {
+	case 0:
+		return nil
+	case 1:
+		return slices[0]
+	}
+
+	var size int
+	for _, slice := range slices {
+		size += len(slice)
+	}
+	result := make([]T, 0, size)
+	for _, s := range slices {
+		result = append(result, s...)
+	}
+	return result
+}
+
+// SliceUnionUnique returns all unique values from the provided slices.
+func SliceUnionUnique[T comparable](slices ...[]T) []T {
+	var uniqMap map[T]bool
+	switch len(slices) {
+	case 0:
+		return nil
+	case 1:
+		uniqMap = make(map[T]bool, len(slices[0]))
+	default:
+		uniqMap = make(map[T]bool)
+	}
+
+	for _, s := range slices {
+		for _, v := range s {
+			uniqMap[v] = true
+		}
+	}
+	return mapKeys(uniqMap)
+}
+
 // SliceRemoveAt removes the element at the specified index.
 // Returns original slice if index is out of bounds.
 func SliceRemoveAt[T any](slice []T, index int) []T {

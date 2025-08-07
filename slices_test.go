@@ -269,6 +269,111 @@ func TestSliceConversion(t *testing.T) {
 	})
 }
 
+func TestSliceUnion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		input  [][]int
+		expect []int
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: nil,
+		},
+		{
+			name:   "empty",
+			input:  [][]int{},
+			expect: nil,
+		},
+		{
+			name:   "one",
+			input:  [][]int{{1, 2, 3}},
+			expect: []int{1, 2, 3},
+		},
+		{
+			name:   "two",
+			input:  [][]int{{1, 2}, {3, 4}},
+			expect: []int{1, 2, 3, 4},
+		},
+		{
+			name:   "three",
+			input:  [][]int{{1, 2}, {2, 3}, {3, 4}},
+			expect: []int{1, 2, 2, 3, 3, 4},
+		},
+		{
+			name:   "nested_empty_slices",
+			input:  [][]int{{}, {}},
+			expect: []int{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SliceUnion(tt.input...)
+
+			assert.Len(t, got, len(tt.expect))
+			assert.ElementsMatch(t, tt.expect, got)
+		})
+	}
+}
+
+func TestSliceUnionUnique(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		input  [][]int
+		expect []int
+	}{
+		{
+			name:   "nil",
+			input:  nil,
+			expect: nil,
+		},
+		{
+			name:   "empty",
+			input:  [][]int{},
+			expect: nil,
+		},
+		{
+			name:   "unique_values",
+			input:  [][]int{{1, 2}, {3, 4}},
+			expect: []int{1, 2, 3, 4},
+		},
+		{
+			name:   "middle_overlapping_values",
+			input:  [][]int{{1, 2}, {2, 3}, {3, 4}},
+			expect: []int{1, 2, 3, 4},
+		},
+		{
+			name:   "single_slice",
+			input:  [][]int{{1, 2, 3}},
+			expect: []int{1, 2, 3},
+		},
+		{
+			name:   "nested_empty_slices",
+			input:  [][]int{{}, {}},
+			expect: []int{},
+		},
+		{
+			name:   "duplicate_values_in_slice",
+			input:  [][]int{{1, 1, 2}, {2, 3, 3}},
+			expect: []int{1, 2, 3},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SliceUnionUnique(tt.input...)
+
+			assert.Len(t, got, len(tt.expect))
+			assert.ElementsMatch(t, tt.expect, got)
+		})
+	}
+}
+
 var sliceRemoveTestCases = []struct {
 	name   string
 	input  []int
