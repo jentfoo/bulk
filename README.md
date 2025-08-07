@@ -45,7 +45,97 @@ import "github.com/go-analyze/bulk"
 
 ## Usage
 
-TODO - UNDER CONSTRUCTION
+### Slice Operations
+
+#### Filtering
+
+##### `SliceFilter[T any](slice []T, predicate func(v T) bool) []T`
+Filters elements that pass the predicate function. **Zero allocations** when all elements pass or fail.
+
+```go
+numbers := []int{1, 2, 3, 4, 5, 6}
+evens := bulk.SliceFilter(numbers, func(n int) bool { return n%2 == 0 })
+// Result: [2, 4, 6]
+// Original slice unchanged: [1, 2, 3, 4, 5, 6]
+```
+
+##### `SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T`
+**Zero-allocation** filtering by reusing input slice memory.
+
+```go
+numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
+evens := bulk.SliceFilterInPlace(numbers, func(n int) bool { return n%2 == 0 })
+// Result: [2, 4, 6]
+// Warning: numbers slice is now corrupted and must be discarded
+```
+
+#### Partitioning Operations
+
+##### `SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
+Partitions elements into two slices based on predicate.
+
+```go
+numbers := []int{1, 2, 3, 4, 5, 6}
+evens, odds := bulk.SliceSplit(numbers, func(n int) bool { return n%2 == 0 })
+// evens: [2, 4, 6]
+// odds: [1, 3, 5]
+```
+
+##### `SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
+**Memory-efficient** partitioning that reuses the input slice for one partition.
+
+```go
+numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
+evens, odds := bulk.SliceSplitInPlace(numbers, func(n int) bool { return n%2 == 0 })
+// evens: [2, 4, 6] (reuses original slice memory)
+// odds: [1, 3, 5] (new allocation only when needed)
+```
+
+##### `SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
+**Fastest** partitioning using two-pointer technique. Element order may change.
+
+```go
+numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
+evens, odds := bulk.SliceSplitInPlaceUnstable(numbers, func(n int) bool { return n%2 == 0 })
+// evens: [2, 4, 6] (order may differ from input)
+// odds: [1, 3, 5] (order may differ from input)
+```
+
+#### Transformation Operations
+
+##### `SliceTransform[I any, R any](input []I, conversion func(I) R) []R`
+Converts each element using the provided conversion function.
+
+```go
+strings := []string{"1", "2", "3", "4"}
+numbers := bulk.SliceTransform(strings, func(s string) int {
+    n, _ := strconv.Atoi(s)
+    return n
+})
+// Result: [1, 2, 3, 4]
+```
+
+#### Element Removal
+
+##### `SliceRemoveAt[T any](slice []T, index int) []T`
+Removes element at specified index. Returns view when removing from edges.
+
+```go
+numbers := []int{10, 20, 30, 40, 50}
+result := bulk.SliceRemoveAt(numbers, 2)
+// Result: [10, 20, 40, 50]
+// Original unchanged: [10, 20, 30, 40, 50]
+```
+
+#### `SliceRemoveAtInPlace[T any](slice []T, index int) []T`
+**Zero-allocation** removal with intelligent shifting to minimize data movement.
+
+```go
+numbers := []int{10, 20, 30, 40, 50} // This slice will be modified!
+result := bulk.SliceRemoveAtInPlace(numbers, 2)
+// Result: [10, 20, 40, 50]
+// Automatically chooses optimal shift direction based on index position
+```
 
 ---
 
