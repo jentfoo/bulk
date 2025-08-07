@@ -1,16 +1,31 @@
 # go-analyze/bulk
 
-**High-performance, large collection operations for Go**
+**Performance-first collection operations for Go**
 
-`bulk` provides a suite of utilities for working with large in-memory data structures (slices and maps) in Go, designed to **minimize memory allocations** and **maximize performance**. Copies are generally avoided, and where reasonable `InPlace` functionality is offered to prevent copying entirely.
+`bulk` provides optimized utilities for working with slices and maps in Go, designed to **minimize memory allocations** and **maximize performance**. Unlike typical collection libraries that always copy, copies are avoided when possible (instead using views or truncated slices). And for uses where the input view can be discarded, `InPlace` functionality is offered to prevent copying entirely.
+
+---
+
+## Operation Types
+
+**Default Operations** (recommended):
+- Safe: never corrupt input data
+- Smart: avoid allocations when possible (return views, truncate slices, etc.)
+- Fast: better performance than standard "always copy" designs
+
+**InPlace Operations** (maximum performance):
+- Fastest: zero allocations by reusing input slice memory
+- Unsafe: input slice is modified and must be discarded after use
+- Critical: for performance-sensitive code where memory pressure matters
 
 ---
 
 ## Features
 
-* **Zero-allocation, in-place operations** for filters, partitions, removals, and more
-* Generic support using Go 1.18+ type parameters (any type `T`)
-* Simple, consistent API: single package, `bulk`
+* **Zero-allocation InPlace variants** for maximum performance
+* **Conditional optimizations** that avoid copies when safe
+* Generic support using Go 1.18+ type parameters
+* Simple, consistent API in a single package
 
 ---
 
@@ -40,5 +55,4 @@ TODO - UNDER CONSTRUCTION
 * **Performance-sensitive loops** processing millions of elements
 * Scenarios where **in-place mutations** are safe and desired
 
-If you require copy-on-write semantics as your primary workflow, consider other collection utilities like [Pie](https://github.com/elliotchance/pie) instead, which always returns independent slices but incurs more and larger memory allocations.
-
+If you require copy-on-write semantics as your primary workflow, consider other collection utilities like [Pie](https://github.com/elliotchance/pie) instead, which always returns independent slices but incurs more and larger memory allocations.
