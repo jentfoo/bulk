@@ -10,27 +10,106 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 
 		// build and return result
 		if falseIndex == 0 {
-			// iterate until a true result is found, then start appending at that point
-			var result []T
+			// Track state transitions for view optimization
+			firstTrueIndex := -1
+
+			// Find first true element
 			for i := falseIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
-					// TODO - track true start section, if possible to return a view with the head and tail truncated, avoid the allocation
-					if result == nil {
-						result = make([]T, 0, capGuess(len(slice)-i))
+					firstTrueIndex = i
+					break
+				}
+			}
+
+			if firstTrueIndex == -1 {
+				return nil // No true elements found
+			}
+
+			// Check if all remaining elements are consecutive and true
+			consecutiveEnd := firstTrueIndex
+			for i := firstTrueIndex + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					consecutiveEnd = i
+				} else {
+					// Found a false element, check if consecutive section continues
+					nonConsecutiveStart := i + 1
+					for j := i + 1; j < len(slice); j++ {
+						if predicate(slice[j]) {
+							// Found another true after false, not consecutive - need to allocate
+							remaining := len(slice) - nonConsecutiveStart
+							result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
+							result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+							result = append(result, slice[j])
+
+							// Continue appending remaining true elements
+							for k := j + 1; k < len(slice); k++ {
+								if predicate(slice[k]) {
+									result = append(result, slice[k])
+								}
+							}
+							return result
+						}
 					}
-					result = append(result, slice[i])
+					// No more true elements found, return consecutive view
+					return slice[firstTrueIndex : consecutiveEnd+1]
 				}
 			}
-			return result
+
+			// All elements from firstTrueIndex to end are true
+			return slice[firstTrueIndex:]
 		} else {
-			// copy all records that already passed, and then finish iteration to produce result
-			result := append(make([]T, 0, falseIndex+capGuess(len(slice)-falseIndex-1)), slice[:falseIndex]...)
+			// Handle prefix case - find consecutive suffix section
+			firstTrueIndex := -1
+
+			// Find first true element after falseIndex
 			for i := falseIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
-					// TODO - track true start section, if possible to return a view with the head and tail truncated, avoid the allocation
-					result = append(result, slice[i])
+					firstTrueIndex = i
+					break
 				}
 			}
+
+			if firstTrueIndex == -1 {
+				// No true elements in suffix, return prefix only
+				return slice[:falseIndex]
+			}
+
+			// Check if suffix elements are consecutive and true
+			consecutiveEnd := firstTrueIndex
+			for i := firstTrueIndex + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					consecutiveEnd = i
+				} else {
+					// Found a false element, check if consecutive section continues
+					for j := i + 1; j < len(slice); j++ {
+						if predicate(slice[j]) {
+							// Found another true after false, not consecutive - need to allocate
+							result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
+							result = append(result, slice[:falseIndex]...)
+							result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+							result = append(result, slice[j])
+
+							// Continue appending remaining true elements
+							for k := j + 1; k < len(slice); k++ {
+								if predicate(slice[k]) {
+									result = append(result, slice[k])
+								}
+							}
+							return result
+						}
+					}
+					// No more true elements found, combine prefix with consecutive suffix view
+					result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1))
+					result = append(result, slice[:falseIndex]...)
+					result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+					return result
+				}
+			}
+
+			// All suffix elements from firstTrueIndex to end are true
+			result := make([]T, 0, falseIndex+(len(slice)-firstTrueIndex))
+			result = append(result, slice[:falseIndex]...)
+			result = append(result, slice[firstTrueIndex:]...)
 			return result
 		}
 	}
