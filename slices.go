@@ -30,29 +30,30 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 			for i := firstTrueIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
 					consecutiveEnd = i
-				} else {
-					// Found a false element, check if consecutive section continues
-					nonConsecutiveStart := i + 1
-					for j := i + 1; j < len(slice); j++ {
-						if predicate(slice[j]) {
-							// Found another true after false, not consecutive - need to allocate
-							remaining := len(slice) - nonConsecutiveStart
-							result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
-							result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-							result = append(result, slice[j])
-
-							// Continue appending remaining true elements
-							for k := j + 1; k < len(slice); k++ {
-								if predicate(slice[k]) {
-									result = append(result, slice[k])
-								}
-							}
-							return result
-						}
-					}
-					// No more true elements found, return consecutive view
-					return slice[firstTrueIndex : consecutiveEnd+1]
+					continue
 				}
+
+				// Found a false element, check if consecutive section continues
+				nonConsecutiveStart := i + 1
+				for j := i + 1; j < len(slice); j++ {
+					if predicate(slice[j]) {
+						// Found another true after false, not consecutive - need to allocate
+						remaining := len(slice) - nonConsecutiveStart
+						result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
+						result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+						result = append(result, slice[j])
+
+						// Continue appending remaining true elements
+						for k := j + 1; k < len(slice); k++ {
+							if predicate(slice[k]) {
+								result = append(result, slice[k])
+							}
+						}
+						return result
+					}
+				}
+				// No more true elements found, return consecutive view
+				return slice[firstTrueIndex : consecutiveEnd+1]
 			}
 
 			// All elements from firstTrueIndex to end are true
@@ -79,31 +80,32 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 			for i := firstTrueIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
 					consecutiveEnd = i
-				} else {
-					// Found a false element, check if consecutive section continues
-					for j := i + 1; j < len(slice); j++ {
-						if predicate(slice[j]) {
-							// Found another true after false, not consecutive - need to allocate
-							result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
-							result = append(result, slice[:falseIndex]...)
-							result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-							result = append(result, slice[j])
-
-							// Continue appending remaining true elements
-							for k := j + 1; k < len(slice); k++ {
-								if predicate(slice[k]) {
-									result = append(result, slice[k])
-								}
-							}
-							return result
-						}
-					}
-					// No more true elements found, combine prefix with consecutive suffix view
-					result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1))
-					result = append(result, slice[:falseIndex]...)
-					result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-					return result
+					continue
 				}
+
+				// Found a false element, check if consecutive section continues
+				for j := i + 1; j < len(slice); j++ {
+					if predicate(slice[j]) {
+						// Found another true after false, not consecutive - need to allocate
+						result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
+						result = append(result, slice[:falseIndex]...)
+						result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+						result = append(result, slice[j])
+
+						// Continue appending remaining true elements
+						for k := j + 1; k < len(slice); k++ {
+							if predicate(slice[k]) {
+								result = append(result, slice[k])
+							}
+						}
+						return result
+					}
+				}
+				// No more true elements found, combine prefix with consecutive suffix view
+				result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1))
+				result = append(result, slice[:falseIndex]...)
+				result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+				return result
 			}
 
 			// All suffix elements from firstTrueIndex to end are true
