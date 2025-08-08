@@ -111,10 +111,10 @@ Converts each element using the provided conversion function.
 
 ```go
 strings := []string{"1", "2", "3", "4"}
-numbers := bulk.SliceTransform(strings, func(s string) int {
+numbers := bulk.SliceTransform(func(s string) int {
     n, _ := strconv.Atoi(s)
     return n
-})
+}, strings)
 // Result: [1, 2, 3, 4]
 ```
 
@@ -127,7 +127,7 @@ Converts slices to a map for fast lookup and deduplication. Accepts multiple sli
 slice1 := []string{"a", "b", "c", "b"}
 slice2 := []string{"c", "d", "e"}
 set := bulk.SliceToMap(slice1, slice2)
-// Result: map[string]bool{"a": true, "b": true, "c": true, "d": true, "e": true}
+// Result: map[string]bool{"a": true, "b": true, "c": true, "d": true, "e": true} (order may vary)
 ```
 
 **Deduplication Pattern:**
