@@ -1,5 +1,8 @@
 # go-analyze/bulk
 
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/go-analyze/charts/blob/master/LICENSE)
+[![Build Status](https://github.com/go-analyze/bulk/actions/workflows/tests-main.yml/badge.svg)](https://github.com/go-analyze/bulk/actions/workflows/tests-main.yml)
+
 **Performance-first collection operations for Go**
 
 `bulk` provides optimized utilities for working with slices and maps in Go, designed to **minimize memory allocations** and **maximize performance**. Unlike typical collection libraries that always copy, copies are avoided when possible (instead using views or truncated slices). And for uses where the input view can be discarded, `InPlace` functionality is offered to prevent copying entirely.
