@@ -106,6 +106,7 @@ func SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T {
 			n++
 		}
 	}
+	clear(slice[n:])
 	return slice[:n]
 }
 
@@ -185,6 +186,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 				falseBuf = append(falseBuf, v)
 			}
 		}
+		clear(slice[len(trueList):])
 		return trueList, falseBuf
 	}
 
@@ -206,6 +208,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 			falseList = append(falseList, v) // safe as above
 		}
 	}
+	clear(slice[len(falseList):])
 	return trueBuf, falseList
 }
 
