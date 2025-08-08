@@ -44,8 +44,8 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 			for j := nonConsecutiveStart + 1; j < len(slice); j++ {
 				if predicate(slice[j]) {
 					// Found another true after false, not consecutive - need to allocate
-					remaining := len(slice) - nonConsecutiveStart
-					result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
+					// worst case size: (consecutiveEnd-firstTrueIndex+1) + 1 + (len(slice) - j - 1) (+1 -1 simplified out)
+					result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
 					result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
 					result = append(result, slice[j])
 
@@ -178,9 +178,8 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 				trueList = append(trueList, v) // writes to earlier indices only; safe
 			} else {
 				if falseBuf == nil {
-					// Allocate when we discover the split. Use a conservative guess.
-					rem := n - i
-					falseBuf = make([]T, 0, capGuess(rem))
+					// Allocate when we discover the split
+					falseBuf = make([]T, 0, capGuess(n-i))
 				}
 				falseBuf = append(falseBuf, v)
 			}
@@ -198,8 +197,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 		isTrue := predicate(v) // one evaluation per element
 		if isTrue {
 			if trueBuf == nil {
-				rem := n - i
-				trueBuf = make([]T, 0, capGuess(rem))
+				trueBuf = make([]T, 0, capGuess(n-i))
 			}
 			trueBuf = append(trueBuf, v)
 		} else {
@@ -245,10 +243,12 @@ func SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T,
 }
 
 // SliceTransform converts each element using the conversion function.
-func SliceTransform[I any, R any](input []I, conversion func(I) R) []R {
-	result := make([]R, len(input))
-	for i, v := range input {
-		result[i] = conversion(v)
+func SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R {
+	result := make([]R, 0, sliceTotalSize(inputs))
+	for _, input := range inputs {
+		for _, v := range input {
+			result = append(result, conversion(v))
+		}
 	}
 	return result
 }
@@ -256,16 +256,30 @@ func SliceTransform[I any, R any](input []I, conversion func(I) R) []R {
 // SliceToMap accepts slices of a comparable type and returns a Map with the values as the key.
 // This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
 func SliceToMap[T comparable](slices ...[]T) map[T]bool {
-	var size int
-	for _, slice := range slices {
-		size += len(slice)
-	}
-	result := make(map[T]bool, size)
-
+	result := make(map[T]bool, sliceTotalSize(slices))
 	for _, slice := range slices {
 		for _, value := range slice {
 			result[value] = true
 		}
 	}
 	return result
+}
+
+// SliceTransformToMap accepts slices of any type with a function to convert those types while storing the result
+// as the key to the resulting map. This allows in a single step a combination of SliceTransform with SliceToMap,
+func SliceTransformToMap[I any, R comparable](conversion func(I) R, slices ...[]I) map[R]bool {
+	result := make(map[R]bool, sliceTotalSize(slices))
+	for _, slice := range slices {
+		for _, inputVal := range slice {
+			result[conversion(inputVal)] = true
+		}
+	}
+	return result
+}
+
+func sliceTotalSize[T any](slices ...[]T) (size int) {
+	for _, slice := range slices {
+		size += len(slice)
+	}
+	return
 }

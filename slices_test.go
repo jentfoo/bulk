@@ -19,6 +19,10 @@ var sliceTestCases = []struct {
 	testFunc    func(v int) bool
 	expectTrue  []int
 	expectFalse []int
+	trueCapMin  int
+	trueCapMax  int
+	falseCapMin int
+	falseCapMax int
 }{
 	{
 		name:        "nil",
@@ -26,6 +30,10 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  nil,
 		expectFalse: nil,
+		trueCapMin:  0,
+		trueCapMax:  0,
+		falseCapMin: 0,
+		falseCapMax: 0,
 	},
 	{
 		name:        "empty",
@@ -33,6 +41,10 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  nil,
 		expectFalse: nil,
+		trueCapMin:  0,
+		trueCapMax:  0,
+		falseCapMin: 0,
+		falseCapMax: 0,
 	},
 	{
 		name:        "all_true",
@@ -40,6 +52,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6},
 		expectFalse: nil,
+		// should return original slice
+		trueCapMin: 3,
+		trueCapMax: 3,
+		// empty slice, but may retain original capacity as view
+		falseCapMin: 0,
+		falseCapMax: 3,
 	},
 	{
 		name:        "all_false",
@@ -47,6 +65,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  nil,
 		expectFalse: []int{1, 3, 5},
+		// empty slice, but may retain original capacity as view
+		trueCapMin: 0,
+		trueCapMax: 3,
+		// should return original slice
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "all_true_large",
@@ -54,6 +78,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return true },
 		expectTrue:  sliceLargeInput,
 		expectFalse: nil,
+		// should return original slice
+		trueCapMin: 101,
+		trueCapMax: 101,
+		// empty slice, but may retain original capacity as view
+		falseCapMin: 0,
+		falseCapMax: 101,
 	},
 	{
 		name:        "all_false_large",
@@ -61,6 +91,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return false },
 		expectTrue:  nil,
 		expectFalse: sliceLargeInput,
+		// empty slice, but may retain original capacity as view
+		trueCapMin: 0,
+		trueCapMax: 101,
+		// should return original slice
+		falseCapMin: 101,
+		falseCapMax: 101,
 	},
 	{
 		name:        "single_true",
@@ -68,6 +104,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2},
 		expectFalse: nil,
+		// should return original slice
+		trueCapMin: 1,
+		trueCapMax: 1,
+		// empty slice, but may retain original capacity as view
+		falseCapMin: 0,
+		falseCapMax: 1,
 	},
 	{
 		name:        "single_false",
@@ -75,6 +117,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  nil,
 		expectFalse: []int{1},
+		// empty slice, but may retain original capacity as view
+		trueCapMin: 0,
+		trueCapMax: 1,
+		// should return original slice
+		falseCapMin: 1,
+		falseCapMax: 1,
 	},
 	{
 		name:        "one_true",
@@ -82,6 +130,10 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 1 },
 		expectTrue:  []int{1},
 		expectFalse: []int{2, 3, 4, 6, 8},
+		trueCapMin:  1,
+		trueCapMax:  6,
+		falseCapMin: 5,
+		falseCapMax: 5,
 	},
 	{
 		name:        "one_true_large_first",
@@ -89,6 +141,10 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 0 },
 		expectTrue:  []int{0},
 		expectFalse: sliceLargeInput[1:],
+		trueCapMin:  1,
+		trueCapMax:  101,
+		falseCapMin: 100,
+		falseCapMax: 100,
 	},
 	{
 		name:       "two_true_large_middle",
@@ -101,6 +157,12 @@ var sliceTestCases = []struct {
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
 			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 		},
+		// scattered elements, may allocate
+		trueCapMin: 12,
+		trueCapMax: 101,
+		// scattered elements, may allocate
+		falseCapMin: 100,
+		falseCapMax: 101,
 	},
 	{
 		name:        "true_end",
@@ -108,6 +170,10 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 1 },
 		expectTrue:  []int{1, 1},
 		expectFalse: []int{2, 3, 4, 6, 8},
+		trueCapMin:  2,
+		trueCapMax:  2,
+		falseCapMin: 6,
+		falseCapMax: 7,
 	},
 	{
 		name:        "mixed_split_first",
@@ -115,6 +181,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6, 8},
 		expectFalse: []int{1, 1},
+		// scattered elements, may allocate
+		trueCapMin: 4,
+		trueCapMax: 5,
+		// scattered elements, may allocate
+		falseCapMin: 5,
+		falseCapMax: 6,
 	},
 	{
 		name:        "mixed_split_second",
@@ -122,6 +194,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6, 8},
 		expectFalse: []int{1},
+		// prefix + suffix, may allocate
+		trueCapMin: 4,
+		trueCapMax: 5,
+		// single element, may allocate
+		falseCapMin: 4,
+		falseCapMax: 5,
 	},
 	{
 		name:        "mixed_split_middle",
@@ -129,6 +207,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6, 8},
 		expectFalse: []int{1, 3, 5},
+		// prefix + suffix, may allocate
+		trueCapMin: 4,
+		trueCapMax: 7,
+		// consecutive middle section, may return view
+		falseCapMin: 4,
+		falseCapMax: 7,
 	},
 	{
 		name:        "mixed_split_last",
@@ -136,6 +220,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6},
 		expectFalse: []int{1},
+		// prefix only, may return view
+		trueCapMin: 3,
+		trueCapMax: 4,
+		// single element at end, may return view
+		falseCapMin: 1,
+		falseCapMax: 1,
 	},
 	{
 		name:     "mixed_split_large",
@@ -153,6 +243,10 @@ var sliceTestCases = []struct {
 			1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25,
 			27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49,
 		},
+		trueCapMin:  100,
+		trueCapMax:  101,
+		falseCapMin: 99,
+		falseCapMax: 101,
 	},
 	{
 		name:        "consecutive_start_after_one_false",
@@ -160,6 +254,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 2 },
 		expectTrue:  []int{2, 3, 4, 5},
 		expectFalse: []int{1},
+		// consecutive suffix, may return view
+		trueCapMin: 4,
+		trueCapMax: 4,
+		// single element prefix, may return view
+		falseCapMin: 4,
+		falseCapMax: 5,
 	},
 	{
 		name:        "consecutive_start_after_multiple_false",
@@ -167,6 +267,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 6 },
 		expectTrue:  []int{6, 7, 8},
 		expectFalse: []int{1, 3, 5},
+		// consecutive suffix, may return view
+		trueCapMin: 3,
+		trueCapMax: 3,
+		// non-consecutive prefix, may allocate
+		falseCapMin: 5,
+		falseCapMax: 6,
 	},
 	{
 		name:        "consecutive_middle_chunk_only",
@@ -174,6 +280,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 6 && v <= 9 },
 		expectTrue:  []int{6, 7, 8, 9},
 		expectFalse: []int{1, 3, 5, 11},
+		// consecutive middle chunk, may return view
+		trueCapMin: 6,
+		trueCapMax: 6,
+		// scattered elements, may allocate
+		falseCapMin: 4,
+		falseCapMax: 8,
 	},
 	{
 		name:        "consecutive_end_chunk_only",
@@ -181,6 +293,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 8 },
 		expectTrue:  []int{8, 9, 10},
 		expectFalse: []int{1, 3, 5},
+		// consecutive suffix, may return view
+		trueCapMin: 3,
+		trueCapMax: 3,
+		// non-consecutive prefix, may allocate
+		falseCapMin: 5,
+		falseCapMax: 6,
 	},
 	{
 		name:        "prefix_plus_consecutive_suffix",
@@ -188,6 +306,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 8, 10, 12},
 		expectFalse: []int{1, 3},
+		// prefix + suffix, may allocate
+		trueCapMin: 5,
+		trueCapMax: 7,
+		// consecutive middle section, may return view
+		falseCapMin: 5,
+		falseCapMax: 7,
 	},
 	{
 		name:        "prefix_plus_non_consecutive_suffix",
@@ -195,6 +319,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 8, 10},
 		expectFalse: []int{1, 9},
+		// prefix + suffix, may allocate
+		trueCapMin: 5,
+		trueCapMax: 6,
+		// scattered elements, may allocate
+		falseCapMin: 3,
+		falseCapMax: 6,
 	},
 	{
 		name:        "consecutive_chunk_then_gap_then_more",
@@ -202,6 +332,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{6, 8, 12, 14},
 		expectFalse: []int{1, 7, 3, 5},
+		// scattered elements, may allocate
+		trueCapMin: 6,
+		trueCapMax: 8,
+		// scattered elements, may allocate
+		falseCapMin: 7,
+		falseCapMax: 8,
 	},
 	{
 		name:        "single_true_after_false",
@@ -209,13 +345,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 8 },
 		expectTrue:  []int{8},
 		expectFalse: []int{1, 3, 5},
-	},
-	{
-		name:        "all_false_after_initial_false",
-		input:       []int{1, 3, 5, 7, 9},
-		testFunc:    func(v int) bool { return v%2 == 0 },
-		expectTrue:  nil,
-		expectFalse: []int{1, 3, 5, 7, 9},
+		// single element at end, may return view
+		trueCapMin: 1,
+		trueCapMax: 1,
+		// non-consecutive prefix, may allocate
+		falseCapMin: 3,
+		falseCapMax: 4,
 	},
 	{
 		name:        "consecutive_at_very_end",
@@ -223,6 +358,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 8 },
 		expectTrue:  []int{8, 10, 12},
 		expectFalse: []int{1, 3, 5, 7},
+		// consecutive suffix, may return view
+		trueCapMin: 3,
+		trueCapMax: 3,
+		// non-consecutive prefix, may allocate
+		falseCapMin: 6,
+		falseCapMax: 7,
 	},
 	{
 		name:        "prefix_only_no_suffix_true",
@@ -230,6 +371,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6},
 		expectFalse: []int{1, 3, 5},
+		// prefix only, may return view
+		trueCapMin: 5,
+		trueCapMax: 6,
+		// consecutive suffix, may return view
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "long_consecutive_in_middle",
@@ -237,6 +384,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 10 && v <= 15 },
 		expectTrue:  []int{10, 11, 12, 13, 14, 15},
 		expectFalse: []int{1, 3, 5, 7},
+		// long consecutive middle chunk, may return view
+		trueCapMin: 8,
+		trueCapMax: 8,
+		// scattered elements, may allocate
+		falseCapMin: 4,
+		falseCapMax: 10,
 	},
 	{
 		name:        "multiple_gaps_non_consecutive",
@@ -244,6 +397,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 0 },
 		expectTrue:  []int{2, 4, 6, 8, 10},
 		expectFalse: []int{1, 5, 9},
+		// scattered elements, may allocate
+		trueCapMin: 6,
+		trueCapMax: 8,
+		// scattered elements, may allocate
+		falseCapMin: 6,
+		falseCapMax: 8,
 	},
 	{
 		name:        "consecutive_with_single_gap",
@@ -251,6 +410,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 6 },
 		expectTrue:  []int{6, 7, 8, 9, 12},
 		expectFalse: []int{1, 5},
+		// consecutive chunk + suffix, may allocate
+		trueCapMin: 5,
+		trueCapMax: 7,
+		// scattered elements, may allocate
+		falseCapMin: 3,
+		falseCapMax: 7,
 	},
 	{
 		name:        "large_consecutive_chunk_optimization",
@@ -258,6 +423,12 @@ var sliceTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 10 },
 		expectTrue:  []int{10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25},
 		expectFalse: []int{1, 3, 5},
+		// large consecutive suffix, may return view
+		trueCapMin: 16,
+		trueCapMax: 16,
+		// non-consecutive prefix, may allocate
+		falseCapMin: 18,
+		falseCapMax: 19,
 	},
 }
 
@@ -278,6 +449,8 @@ func TestSliceFilter(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectTrue, trueSlice)
 			}
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
 
 			falseSlice := SliceFilter(tt.input, func(v int) bool { return !tt.testFunc(v) })
 			if len(tt.expectFalse) == 0 {
@@ -285,6 +458,8 @@ func TestSliceFilter(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 }
@@ -317,6 +492,12 @@ func TestSliceSplit(t *testing.T) {
 				assert.Equal(t, tt.expectTrue, trueSlice)
 			}
 			assert.Equal(t, tt.expectFalse, falseSlice)
+
+			// Validate capacity
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 }
@@ -334,6 +515,12 @@ func TestSliceSplitInPlace(t *testing.T) {
 				assert.Equal(t, tt.expectTrue, trueSlice)
 			}
 			assert.Equal(t, tt.expectFalse, falseSlice)
+
+			// Validate capacity
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 }
@@ -351,30 +538,307 @@ func TestSliceSplitInPlaceUnstable(t *testing.T) {
 	}
 }
 
+// TestSliceFilterCapacity tests that SliceFilter returns slices with appropriate capacity
+func TestSliceFilterCapacity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all_pass_returns_original_slice", func(t *testing.T) {
+		input := []int{2, 4, 6, 8}
+		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+
+		// Should return the exact same slice (view optimization)
+		assert.Equal(t, input, result)
+		assert.Equal(t, cap(input), cap(result))
+
+		// Verify it's the same underlying array
+		if len(input) > 0 && len(result) > 0 {
+			assert.Equal(t, &input[0], &result[0])
+		}
+	})
+
+	t.Run("consecutive_suffix_returns_view", func(t *testing.T) {
+		input := []int{1, 3, 6, 7, 8, 9}
+		result := SliceFilter(input, func(v int) bool { return v >= 6 })
+
+		// Should return a view of the suffix [6, 7, 8, 9]
+		assert.Equal(t, []int{6, 7, 8, 9}, result)
+		// Should share underlying array
+		if len(result) > 0 {
+			assert.Equal(t, &input[2], &result[0]) // result starts at input[2]
+		}
+	})
+
+	t.Run("consecutive_prefix_returns_view", func(t *testing.T) {
+		input := []int{2, 4, 6, 1, 3, 5}
+		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+
+		// Should return a view of prefix [2, 4, 6] - but this case requires allocation due to non-consecutive
+		assert.Equal(t, []int{2, 4, 6}, result)
+		// This case actually allocates because prefix + non-consecutive elements exist
+		assert.GreaterOrEqual(t, cap(result), len(result))
+	})
+
+	t.Run("empty_result_retains_original_capacity", func(t *testing.T) {
+		input := []int{1, 3, 5, 7}
+		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Empty(t, result)
+		// Empty result from SliceFilter returns slice[:0] which retains original capacity
+		assert.Equal(t, cap(input), cap(result))
+	})
+
+	t.Run("non_consecutive_allocates_with_reasonable_capacity", func(t *testing.T) {
+		input := []int{2, 1, 4, 3, 6, 5, 8}
+		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4, 6, 8}, result)
+		// Should allocate with capacity >= length of result
+		assert.GreaterOrEqual(t, cap(result), len(result))
+		// Should not over-allocate excessively
+		assert.LessOrEqual(t, cap(result), len(input))
+	})
+}
+
+// TestSliceSplitCapacity tests that SliceSplit returns slices with appropriate capacity
+func TestSliceSplitCapacity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all_true_returns_original_slice", func(t *testing.T) {
+		input := []int{2, 4, 6, 8}
+		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, input, trueSlice)
+		assert.Empty(t, falseSlice)
+		assert.Equal(t, cap(input), cap(trueSlice))
+	})
+
+	t.Run("all_false_returns_original_slice", func(t *testing.T) {
+		input := []int{1, 3, 5, 7}
+		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Empty(t, trueSlice)
+		assert.Equal(t, input, falseSlice)
+		assert.Equal(t, cap(input), cap(falseSlice))
+	})
+
+	t.Run("split_allocates_appropriate_capacity", func(t *testing.T) {
+		input := []int{1, 2, 3, 4, 5, 6, 7, 8}
+		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4, 6, 8}, trueSlice)
+		assert.Equal(t, []int{1, 3, 5, 7}, falseSlice)
+
+		// Both slices should have reasonable capacity
+		assert.GreaterOrEqual(t, cap(trueSlice), len(trueSlice))
+		assert.GreaterOrEqual(t, cap(falseSlice), len(falseSlice))
+
+		// Capacity should not be excessive
+		assert.LessOrEqual(t, cap(trueSlice), len(input))
+		assert.LessOrEqual(t, cap(falseSlice), len(input))
+	})
+
+	t.Run("first_element_true_capacity_allocation", func(t *testing.T) {
+		input := []int{2, 1, 4, 3, 6}
+		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4, 6}, trueSlice)
+		assert.Equal(t, []int{1, 3}, falseSlice)
+
+		// Check capacity is reasonable for both slices
+		assert.GreaterOrEqual(t, cap(trueSlice), len(trueSlice))
+		assert.GreaterOrEqual(t, cap(falseSlice), len(falseSlice))
+	})
+
+	t.Run("first_element_false_capacity_allocation", func(t *testing.T) {
+		input := []int{1, 2, 3, 4, 5}
+		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4}, trueSlice)
+		assert.Equal(t, []int{1, 3, 5}, falseSlice)
+
+		// Check capacity is reasonable for both slices
+		assert.GreaterOrEqual(t, cap(trueSlice), len(trueSlice))
+		assert.GreaterOrEqual(t, cap(falseSlice), len(falseSlice))
+	})
+}
+
+// TestSliceSplitInPlaceCapacity tests capacity behavior of in-place split functions
+func TestSliceSplitInPlaceCapacity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("first_true_reuses_input_slice", func(t *testing.T) {
+		input := []int{2, 1, 4, 3, 6}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4, 6}, trueSlice)
+		assert.Equal(t, []int{1, 3}, falseSlice)
+
+		// True slice should reuse original capacity
+		assert.Equal(t, originalCap, cap(trueSlice))
+		// False slice should have reasonable capacity
+		assert.GreaterOrEqual(t, cap(falseSlice), len(falseSlice))
+	})
+
+	t.Run("first_false_reuses_input_slice", func(t *testing.T) {
+		input := []int{1, 2, 3, 4, 5}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, []int{2, 4}, trueSlice)
+		assert.Equal(t, []int{1, 3, 5}, falseSlice)
+
+		// False slice should reuse original capacity
+		assert.Equal(t, originalCap, cap(falseSlice))
+		// True slice should have reasonable capacity
+		assert.GreaterOrEqual(t, cap(trueSlice), len(trueSlice))
+	})
+
+	t.Run("all_true_reuses_input_capacity", func(t *testing.T) {
+		input := []int{2, 4, 6, 8}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, input, trueSlice)
+		assert.Empty(t, falseSlice)
+		assert.Equal(t, originalCap, cap(trueSlice))
+	})
+
+	t.Run("all_false_reuses_input_capacity", func(t *testing.T) {
+		input := []int{1, 3, 5, 7}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Empty(t, trueSlice)
+		assert.Equal(t, input, falseSlice)
+		assert.Equal(t, originalCap, cap(falseSlice))
+	})
+}
+
+// TestSliceSplitInPlaceUnstableCapacity tests capacity behavior of unstable in-place split
+func TestSliceSplitInPlaceUnstableCapacity(t *testing.T) {
+	t.Parallel()
+
+	t.Run("reuses_input_slice_capacity", func(t *testing.T) {
+		input := []int{1, 2, 3, 4, 5, 6}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		// Both slices should use the original array
+		totalLen := len(trueSlice) + len(falseSlice)
+		assert.Equal(t, len(input), totalLen)
+
+		// Combined capacity should equal original capacity
+		if len(trueSlice) > 0 && len(falseSlice) > 0 {
+			// Both slices share the same underlying array
+			assert.LessOrEqual(t, cap(trueSlice), originalCap)
+			assert.LessOrEqual(t, cap(falseSlice), originalCap)
+		} else if len(trueSlice) > 0 {
+			assert.Equal(t, originalCap, cap(trueSlice))
+		} else if len(falseSlice) > 0 {
+			assert.Equal(t, originalCap, cap(falseSlice))
+		}
+	})
+
+	t.Run("all_true_preserves_capacity", func(t *testing.T) {
+		input := []int{2, 4, 6, 8}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Equal(t, originalCap, cap(trueSlice))
+		assert.Empty(t, falseSlice)
+	})
+
+	t.Run("all_false_preserves_capacity", func(t *testing.T) {
+		input := []int{1, 3, 5, 7}
+		originalCap := cap(input)
+		inputCopy := sliceDup(input)
+
+		trueSlice, falseSlice :=
+			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+
+		assert.Empty(t, trueSlice)
+		assert.Equal(t, originalCap, cap(falseSlice))
+	})
+}
+
 func TestSliceTransform(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil", func(t *testing.T) {
 		var input []int
-		result := SliceTransform(input, func(i int) int { return i })
+		result := SliceTransform(func(i int) int { return i }, input)
 		assert.Empty(t, result)
 	})
 
 	t.Run("empty", func(t *testing.T) {
-		result := SliceTransform([]int{}, func(i int) int { return i })
+		result := SliceTransform(func(i int) int { return i }, []int{})
 		assert.Empty(t, result)
 	})
 
 	t.Run("int_to_string", func(t *testing.T) {
 		input := []int{1, 2, 3}
-		result := SliceTransform(input, func(i int) string { return strconv.Itoa(i) })
+		result := SliceTransform(func(i int) string { return strconv.Itoa(i) }, input)
 		assert.Equal(t, []string{"1", "2", "3"}, result)
 	})
 
 	t.Run("float_to_int", func(t *testing.T) {
 		input := []float64{1.1, 2.2}
-		result := SliceTransform(input, func(f float64) int { return int(f) })
+		result := SliceTransform(func(f float64) int { return int(f) }, input)
 		assert.Equal(t, []int{1, 2}, result)
+	})
+
+	t.Run("multiple_slices_concatenated", func(t *testing.T) {
+		slice1 := []int{1, 2}
+		slice2 := []int{3, 4}
+		slice3 := []int{5}
+		result := SliceTransform(func(i int) string { return strconv.Itoa(i) }, slice1, slice2, slice3)
+		assert.Equal(t, []string{"1", "2", "3", "4", "5"}, result)
+	})
+
+	t.Run("multiple_slices_with_empty", func(t *testing.T) {
+		slice1 := []int{1, 2}
+		slice2 := []int{}
+		slice3 := []int{3, 4}
+		result := SliceTransform(func(i int) int { return i * 2 }, slice1, slice2, slice3)
+		assert.Equal(t, []int{2, 4, 6, 8}, result)
+	})
+
+	t.Run("multiple_slices_all_empty", func(t *testing.T) {
+		result := SliceTransform(func(i int) int { return i }, []int{}, []int{}, []int{})
+		assert.Empty(t, result)
+	})
+
+	t.Run("multiple_slices_with_nil", func(t *testing.T) {
+		slice1 := []int{1}
+		var slice2 []int
+		slice3 := []int{2, 3}
+		result := SliceTransform(func(i int) string { return strconv.Itoa(i) }, slice1, slice2, slice3)
+		assert.Equal(t, []string{"1", "2", "3"}, result)
+	})
+
+	t.Run("single_slice_maintains_compatibility", func(t *testing.T) {
+		input := []int{10, 20, 30}
+		result := SliceTransform(func(i int) int { return i / 10 }, input)
+		assert.Equal(t, []int{1, 2, 3}, result)
 	})
 }
 
@@ -475,6 +939,165 @@ func TestSliceToMap(t *testing.T) {
 			"d": true,
 		}
 		assert.Len(t, result, 4)
+		assert.Equal(t, expected, result)
+	})
+}
+
+var sliceTransformToMapTests = []struct {
+	name        string
+	inputSlices [][]int
+	conversion  func(int) string
+	expectKeys  []string
+}{
+	{
+		name:        "nil_input",
+		inputSlices: nil,
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{},
+	},
+	{
+		name:        "empty_input",
+		inputSlices: [][]int{},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{},
+	},
+	{
+		name:        "single_slice",
+		inputSlices: [][]int{{1, 2, 3}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"1", "2", "3"},
+	},
+	{
+		name:        "multiple_slices_unique_values",
+		inputSlices: [][]int{{1, 2}, {3, 4}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"1", "2", "3", "4"},
+	},
+	{
+		name:        "multiple_slices_overlapping_values",
+		inputSlices: [][]int{{1, 2}, {2, 3}, {3, 4}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"1", "2", "3", "4"},
+	},
+	{
+		name:        "duplicate_values_in_slice",
+		inputSlices: [][]int{{1, 1, 2}, {2, 3, 3}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"1", "2", "3"},
+	},
+	{
+		name:        "empty_slices_mixed",
+		inputSlices: [][]int{{}, {1, 2}, {}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"1", "2"},
+	},
+	{
+		name:        "all_same_values",
+		inputSlices: [][]int{{5, 5, 5}, {5, 5}, {5}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"5"},
+	},
+	{
+		name:        "zero_values",
+		inputSlices: [][]int{{0}, {0, 1}, {1, 0}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"0", "1"},
+	},
+	{
+		name:        "negative_values",
+		inputSlices: [][]int{{-1, -2}, {-2, -3}, {-3, -4}},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys:  []string{"-1", "-2", "-3", "-4"},
+	},
+	{
+		name:        "transform_to_same_key",
+		inputSlices: [][]int{{1, 11, 21}, {31, 41, 51}},
+		conversion:  func(i int) string { return strconv.Itoa(i % 10) }, // all mod 10 = 1
+		expectKeys:  []string{"1"},
+	},
+	{
+		name:        "large_input_with_duplicates",
+		inputSlices: [][]int{sliceLargeInput[:25], sliceLargeInput[20:]},
+		conversion:  func(i int) string { return strconv.Itoa(i) },
+		expectKeys: func() []string {
+			keys := make([]string, 51) // 0-50 unique values
+			for i := 0; i <= 50; i++ {
+				keys[i] = strconv.Itoa(i)
+			}
+			return keys
+		}(),
+	},
+}
+
+func TestSliceTransformToMap(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range sliceTransformToMapTests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SliceTransformToMap(tt.conversion, tt.inputSlices...)
+
+			// Check map length
+			assert.Len(t, got, len(tt.expectKeys))
+
+			// Check all expected keys are present with value true
+			for _, key := range tt.expectKeys {
+				val, ok := got[key]
+				assert.True(t, ok, "expected key %q not found", key)
+				assert.True(t, val, "expected key %q to have value true", key)
+			}
+
+			// Check that all map keys are in expected keys
+			for key := range got {
+				assert.Contains(t, tt.expectKeys, key, "unexpected key %q found", key)
+			}
+		})
+	}
+
+	t.Run("int_to_length_string", func(t *testing.T) {
+		slice1 := []string{"a", "bb", "ccc"}
+		slice2 := []string{"dd", "eeeee"}
+		result := SliceTransformToMap(func(s string) int { return len(s) }, slice1, slice2)
+
+		expected := map[int]bool{
+			1: true, // "a"
+			2: true, // "bb", "dd"
+			3: true, // "ccc"
+			5: true, // "eeeee"
+		}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("comparable_struct_keys", func(t *testing.T) {
+		type Point struct{ X, Y int }
+		points1 := []Point{{1, 2}, {3, 4}}
+		points2 := []Point{{1, 2}, {5, 6}} // duplicate {1, 2}
+
+		result := SliceTransformToMap(func(p Point) Point { return p }, points1, points2)
+
+		expected := map[Point]bool{
+			{1, 2}: true,
+			{3, 4}: true,
+			{5, 6}: true,
+		}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("complex_transformation", func(t *testing.T) {
+		nums1 := []int{10, 20, 30}
+		nums2 := []int{15, 25, 35}
+
+		// Transform to "even" or "odd" based on last digit
+		result := SliceTransformToMap(func(n int) string {
+			if n%10%2 == 0 {
+				return "even_ending"
+			}
+			return "odd_ending"
+		}, nums1, nums2)
+
+		expected := map[string]bool{
+			"even_ending": true, // 10, 20, 30
+			"odd_ending":  true, // 15, 25, 35
+		}
 		assert.Equal(t, expected, result)
 	})
 }
