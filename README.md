@@ -115,26 +115,29 @@ numbers := bulk.SliceTransform(strings, func(s string) int {
 // Result: [1, 2, 3, 4]
 ```
 
-#### Element Removal
+#### Set Operations
 
-##### `SliceRemoveAt[T any](slice []T, index int) []T`
-Removes element at specified index. Returns view when removing from edges.
+##### `SliceToMap[T comparable](slices ...[]T) map[T]bool`
+Converts slices to a map for fast lookup and deduplication. Accepts multiple slices for union operations.
 
 ```go
-numbers := []int{10, 20, 30, 40, 50}
-result := bulk.SliceRemoveAt(numbers, 2)
-// Result: [10, 20, 40, 50]
-// Original unchanged: [10, 20, 30, 40, 50]
+slice1 := []string{"a", "b", "c", "b"}
+slice2 := []string{"c", "d", "e"}
+set := bulk.SliceToMap(slice1, slice2)
+// Result: map[string]bool{"a": true, "b": true, "c": true, "d": true, "e": true}
 ```
 
-#### `SliceRemoveAtInPlace[T any](slice []T, index int) []T`
-**Zero-allocation** removal with intelligent shifting to minimize data movement.
-
+**Deduplication Pattern:**
 ```go
-numbers := []int{10, 20, 30, 40, 50} // This slice will be modified!
-result := bulk.SliceRemoveAtInPlace(numbers, 2)
-// Result: [10, 20, 40, 50]
-// Automatically chooses optimal shift direction based on index position
+import (
+    "maps"
+    "slices"
+    "github.com/go-analyze/bulk"
+)
+
+duplicates := []string{"apple", "banana", "apple", "cherry", "banana"}
+unique := slices.Collect(maps.Keys(bulk.SliceToMap(duplicates)))
+// Result: ["apple", "banana", "cherry"] (order may vary)
 ```
 
 ---

@@ -318,29 +318,6 @@ func BenchmarkSliceSplitInPlaceUnstable(b *testing.B) {
 	}
 }
 
-func BenchmarkSliceRemoveAt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		for _, tc := range sliceRemoveTestCases {
-			_ = SliceRemoveAt(tc.input, tc.index)
-		}
-	}
-}
-
-func BenchmarkSliceRemoveAtInPlace(b *testing.B) {
-	// Pre-copy test case inputs to prevent modifying the actual tc.input field
-	testInputs := make([][]int, len(sliceRemoveTestCases))
-	for i, tc := range sliceRemoveTestCases {
-		testInputs[i] = sliceDup(tc.input)
-	}
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for j, tc := range sliceRemoveTestCases {
-			_ = SliceRemoveAtInPlace(testInputs[j], tc.index)
-		}
-	}
-}
-
 func BenchmarkSliceToMap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range sliceToMapTests {

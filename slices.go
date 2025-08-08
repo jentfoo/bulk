@@ -259,65 +259,6 @@ func SliceTransform[I any, R any](input []I, conversion func(I) R) []R {
 	return result
 }
 
-// SliceRemoveAt removes the element at the specified index.
-// Returns original slice if index is out of bounds.
-func SliceRemoveAt[T any](slice []T, index int) []T {
-	switch len(slice) {
-	case 0:
-		return slice
-	case 1:
-		if index == 0 {
-			return slice[:0]
-		} else {
-			return slice
-		}
-	}
-	if index >= len(slice) || index < 0 {
-		return slice // index out of range
-	} else if index == 0 {
-		return slice[1:]
-	} else if index == len(slice)-1 {
-		return slice[:index]
-	}
-
-	result := make([]T, index, len(slice)-1)
-	// Copy the first half of the slice up to index
-	copy(result, slice[:index])
-	// Copy the second half of the slice after index
-	return append(result, slice[index+1:]...)
-}
-
-// SliceRemoveAtInPlace removes the element at the specified index.
-// Input slice is modified and must be discarded after calling.
-func SliceRemoveAtInPlace[T any](slice []T, index int) []T {
-	switch len(slice) {
-	case 0:
-		return slice
-	case 1:
-		if index == 0 {
-			return slice[:0]
-		} else {
-			return slice
-		}
-	}
-	if index >= len(slice) || index < 0 {
-		return slice // index out of range
-	} else if index == 0 {
-		return slice[1:]
-	} else if index == len(slice)-1 {
-		return slice[:index]
-	}
-
-	// Shift the smaller portion to minimize data movement
-	if index < len(slice)/2 { // Shift up
-		copy(slice[1:index+1], slice[0:index])
-		return slice[1:] // Remove first element
-	} else { // Shift down
-		copy(slice[index:], slice[index+1:])
-		return slice[:len(slice)-1] // Remove last element
-	}
-}
-
 // SliceToMap accepts slices of a comparable type and returns a Map with the values as the key.
 // This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
 func SliceToMap[T comparable](slices ...[]T) map[T]bool {
