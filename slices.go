@@ -20,98 +20,68 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 					break
 				}
 			}
-
 			if firstTrueIndex == -1 {
-				return nil // No true elements found
+				return slice[:0] // No true elements found
 			}
 
 			// Check if all remaining elements are consecutive and true
 			consecutiveEnd := firstTrueIndex
+			nonConsecutiveStart := -1
 			for i := firstTrueIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
 					consecutiveEnd = i
 					continue
 				}
-
-				// Found a false element, check if consecutive section continues
-				nonConsecutiveStart := i + 1
-				for j := i + 1; j < len(slice); j++ {
-					if predicate(slice[j]) {
-						// Found another true after false, not consecutive - need to allocate
-						remaining := len(slice) - nonConsecutiveStart
-						result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
-						result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-						result = append(result, slice[j])
-
-						// Continue appending remaining true elements
-						for k := j + 1; k < len(slice); k++ {
-							if predicate(slice[k]) {
-								result = append(result, slice[k])
-							}
-						}
-						return result
-					}
-				}
-				// No more true elements found, return consecutive view
-				return slice[firstTrueIndex : consecutiveEnd+1]
+				// Found a false element, break to check if consecutive section continues
+				nonConsecutiveStart = i
+				break
+			}
+			if nonConsecutiveStart < 0 {
+				return slice[firstTrueIndex:] // All elements from firstTrueIndex to end are true
 			}
 
-			// All elements from firstTrueIndex to end are true
-			return slice[firstTrueIndex:]
-		} else {
-			// Handle prefix case - find consecutive suffix section
-			firstTrueIndex := -1
+			// if any more trues, we have to allocate and append, otherwise return a view
+			for j := nonConsecutiveStart + 1; j < len(slice); j++ {
+				if predicate(slice[j]) {
+					// Found another true after false, not consecutive - need to allocate
+					remaining := len(slice) - nonConsecutiveStart
+					result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(remaining))
+					result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+					result = append(result, slice[j])
 
+					// Continue appending remaining true elements
+					for k := j + 1; k < len(slice); k++ {
+						if predicate(slice[k]) {
+							result = append(result, slice[k])
+						}
+					}
+					return result
+				}
+			}
+			// No more true elements found, return consecutive view
+			return slice[firstTrueIndex : consecutiveEnd+1]
+		} else { // Started true, now first false found
 			// Find first true element after falseIndex
+			secondTrueIndex := -1
 			for i := falseIndex + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
-					firstTrueIndex = i
+					secondTrueIndex = i
 					break
 				}
 			}
-
-			if firstTrueIndex == -1 {
-				// No true elements in suffix, return prefix only
-				return slice[:falseIndex]
+			if secondTrueIndex < 0 {
+				return slice[:falseIndex] // No true elements in suffix, return prefix only
 			}
 
-			// Check if suffix elements are consecutive and true
-			consecutiveEnd := firstTrueIndex
-			for i := firstTrueIndex + 1; i < len(slice); i++ {
-				if predicate(slice[i]) {
-					consecutiveEnd = i
-					continue
-				}
-
-				// Found a false element, check if consecutive section continues
-				for j := i + 1; j < len(slice); j++ {
-					if predicate(slice[j]) {
-						// Found another true after false, not consecutive - need to allocate
-						result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
-						result = append(result, slice[:falseIndex]...)
-						result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-						result = append(result, slice[j])
-
-						// Continue appending remaining true elements
-						for k := j + 1; k < len(slice); k++ {
-							if predicate(slice[k]) {
-								result = append(result, slice[k])
-							}
-						}
-						return result
-					}
-				}
-				// No more true elements found, combine prefix with consecutive suffix view
-				result := make([]T, 0, falseIndex+(consecutiveEnd-firstTrueIndex+1))
-				result = append(result, slice[:falseIndex]...)
-				result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
-				return result
-			}
-
-			// All suffix elements from firstTrueIndex to end are true
-			result := make([]T, 0, falseIndex+(len(slice)-firstTrueIndex))
+			// true+ -> false+ -> true - We must allocate at this point
+			result := make([]T, 0, falseIndex+capGuess(len(slice)-secondTrueIndex))
 			result = append(result, slice[:falseIndex]...)
-			result = append(result, slice[firstTrueIndex:]...)
+			result = append(result, slice[secondTrueIndex])
+			for i := secondTrueIndex + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					result = append(result, slice[i])
+				}
+			}
 			return result
 		}
 	}
@@ -294,10 +264,10 @@ func SliceTransform[I any, R any](input []I, conversion func(I) R) []R {
 func SliceRemoveAt[T any](slice []T, index int) []T {
 	switch len(slice) {
 	case 0:
-		return nil
+		return slice
 	case 1:
 		if index == 0 {
-			return nil
+			return slice[:0]
 		} else {
 			return slice
 		}
@@ -322,10 +292,10 @@ func SliceRemoveAt[T any](slice []T, index int) []T {
 func SliceRemoveAtInPlace[T any](slice []T, index int) []T {
 	switch len(slice) {
 	case 0:
-		return nil
+		return slice
 	case 1:
 		if index == 0 {
-			return nil
+			return slice[:0]
 		} else {
 			return slice
 		}
@@ -346,4 +316,21 @@ func SliceRemoveAtInPlace[T any](slice []T, index int) []T {
 		copy(slice[index:], slice[index+1:])
 		return slice[:len(slice)-1] // Remove last element
 	}
+}
+
+// SliceToMap accepts slices of a comparable type and returns a Map with the values as the key.
+// This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
+func SliceToMap[T comparable](slices ...[]T) map[T]bool {
+	var size int
+	for _, slice := range slices {
+		size += len(slice)
+	}
+	result := make(map[T]bool, size)
+
+	for _, slice := range slices {
+		for _, value := range slice {
+			result[value] = true
+		}
+	}
+	return result
 }

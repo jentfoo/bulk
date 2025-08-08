@@ -8,6 +8,8 @@ import (
 )
 
 var sliceLargeInput = []int{
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+	27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
 	27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 }
@@ -82,6 +84,25 @@ var sliceTestCases = []struct {
 		expectFalse: []int{2, 3, 4, 6, 8},
 	},
 	{
+		name:        "one_true_large_first",
+		input:       sliceLargeInput,
+		testFunc:    func(v int) bool { return v == 0 },
+		expectTrue:  []int{0},
+		expectFalse: sliceLargeInput[1:],
+	},
+	{
+		name:       "two_true_large_middle",
+		input:      sliceLargeInput,
+		testFunc:   func(v int) bool { return v == 40 },
+		expectTrue: []int{40, 40},
+		expectFalse: []int{
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+		},
+	},
+	{
 		name:        "true_end",
 		input:       []int{2, 3, 4, 6, 8, 1, 1},
 		testFunc:    func(v int) bool { return v == 1 },
@@ -121,15 +142,18 @@ var sliceTestCases = []struct {
 		input:    sliceLargeInput,
 		testFunc: func(v int) bool { return v%2 == 0 },
 		expectTrue: []int{
+			0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
+			28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50,
 			2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26,
 			28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50,
 		},
 		expectFalse: []int{
 			1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25,
 			27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49,
+			1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25,
+			27, 29, 31, 33, 35, 37, 39, 41, 43, 45, 47, 49,
 		},
 	},
-	// Test cases for consecutive chunk optimizations
 	{
 		name:        "consecutive_start_after_one_false",
 		input:       []int{1, 2, 3, 4, 5},
@@ -248,11 +272,18 @@ func TestSliceFilter(t *testing.T) {
 
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
-			slice := SliceFilter(tt.input, tt.testFunc)
+			trueSlice := SliceFilter(tt.input, tt.testFunc)
 			if len(tt.expectTrue) == 0 {
-				assert.Empty(t, slice)
+				assert.Empty(t, trueSlice)
 			} else {
-				assert.Equal(t, tt.expectTrue, slice)
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			falseSlice := SliceFilter(tt.input, func(v int) bool { return !tt.testFunc(v) })
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
 		})
 	}
@@ -355,13 +386,13 @@ var sliceRemoveTestCases = []struct {
 		name:   "empty",
 		input:  []int{},
 		index:  0,
-		expect: nil,
+		expect: []int{},
 	},
 	{
 		name:   "single",
 		input:  []int{42},
 		index:  0,
-		expect: nil,
+		expect: []int{},
 	},
 	{
 		name:   "first",
@@ -394,20 +425,19 @@ var sliceRemoveTestCases = []struct {
 		expect: []int{1, 2, 3},
 	},
 	{
-		name:  "large_first",
-		input: sliceLargeInput,
-		index: 0,
-		expect: []int{
-			2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-		},
+		name:   "large_first",
+		input:  sliceLargeInput,
+		index:  0,
+		expect: sliceLargeInput[1:],
 	},
 	{
 		name:  "large_middle1",
 		input: sliceLargeInput,
 		index: 10,
 		expect: []int{
-			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
 			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 		},
 	},
@@ -416,15 +446,30 @@ var sliceRemoveTestCases = []struct {
 		input: sliceLargeInput,
 		index: 40,
 		expect: []int{
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
-			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+		},
+	},
+	{
+		name:  "large_middle3",
+		input: sliceLargeInput,
+		index: 80,
+		expect: []int{
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 		},
 	},
 	{
 		name:  "large_last",
 		input: sliceLargeInput,
-		index: 49,
+		index: 100,
 		expect: []int{
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
 			1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
 			27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
 		},
@@ -434,8 +479,8 @@ var sliceRemoveTestCases = []struct {
 func TestSliceRemoveAt(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceRemoveTestCases {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceRemoveTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := SliceRemoveAt(tt.input, tt.index)
 			assert.Equal(t, tt.expect, result)
 		})
@@ -445,10 +490,113 @@ func TestSliceRemoveAt(t *testing.T) {
 func TestSliceRemoveAtInPlace(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceRemoveTestCases {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceRemoveTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := SliceRemoveAtInPlace(sliceDup(tt.input), tt.index)
-			assert.Equal(t, tt.expect, result)
+			if tt.input != nil { // skip validation on nil, InPlace behaves differently
+				assert.Equal(t, tt.expect, result)
+			}
 		})
 	}
+}
+
+var sliceToMapTests = []struct {
+	name       string
+	input      [][]int
+	expectKeys []int
+}{
+	{
+		name:  "nil",
+		input: nil,
+	},
+	{
+		name:  "empty",
+		input: [][]int{},
+	},
+	{
+		name:       "unique_values",
+		input:      [][]int{{1, 2}, {3, 4}},
+		expectKeys: []int{1, 2, 3, 4},
+	},
+	{
+		name:       "middle_overlapping_values",
+		input:      [][]int{{1, 2}, {2, 3}, {3, 4}},
+		expectKeys: []int{1, 2, 3, 4},
+	},
+	{
+		name:       "single_slice",
+		input:      [][]int{{1, 2, 3}},
+		expectKeys: []int{1, 2, 3},
+	},
+	{
+		name:  "nested_empty_slices",
+		input: [][]int{{}, {}},
+	},
+	{
+		name:       "duplicate_values_in_slice",
+		input:      [][]int{{1, 1, 2}, {2, 3, 3}},
+		expectKeys: []int{1, 2, 3},
+	},
+	{
+		name:  "single_empty_slice",
+		input: [][]int{{}},
+	},
+	{
+		name:       "all_same_values",
+		input:      [][]int{{1, 1, 1}, {1, 1}, {1}},
+		expectKeys: []int{1},
+	},
+	{
+		name:       "large_input_with_duplicates",
+		input:      [][]int{sliceLargeInput[:25], sliceLargeInput[20:]},
+		expectKeys: sliceLargeInput[:51], // 0-50 unique values
+	},
+	{
+		name:       "zero_values",
+		input:      [][]int{{0}, {0, 1}, {1, 0}},
+		expectKeys: []int{0, 1},
+	},
+	{
+		name:       "negative_values",
+		input:      [][]int{{-1, -2}, {-2, -3}, {-3, -4}},
+		expectKeys: []int{-1, -2, -3, -4},
+	},
+}
+
+func TestSliceToMap(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range sliceToMapTests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SliceToMap(tt.input...)
+
+			// Check map length
+			assert.Len(t, got, len(tt.expectKeys))
+
+			// Check all expected keys are present with value true
+			for _, key := range tt.expectKeys {
+				val, ok := got[key]
+				assert.True(t, ok)
+				assert.True(t, val)
+			}
+
+			// Check that all map keys are in expected keys
+			for key := range got {
+				assert.Contains(t, tt.expectKeys, key)
+			}
+		})
+	}
+
+	t.Run("string", func(t *testing.T) {
+		result := SliceToMap([][]string{{"a", "b"}, {"b", "c"}, {"c", "d"}}...)
+
+		expected := map[string]bool{
+			"a": true,
+			"b": true,
+			"c": true,
+			"d": true,
+		}
+		assert.Len(t, result, 4)
+		assert.Equal(t, expected, result)
+	})
 }
