@@ -113,7 +113,7 @@ func SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T {
 // Returns (trueElements, falseElements).
 func SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 	if len(slice) == 0 {
-		return nil, nil
+		return slice, nil
 	}
 
 	var splitIndex int
@@ -162,7 +162,7 @@ func SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 	n := len(slice)
 	if n == 0 {
-		return nil, nil
+		return slice, nil
 	}
 
 	if predicate(slice[0]) { // first element is true
@@ -185,9 +185,6 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 				falseBuf = append(falseBuf, v)
 			}
 		}
-		if len(falseBuf) == 0 {
-			return trueList, nil
-		}
 		return trueList, falseBuf
 	}
 
@@ -209,9 +206,6 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 			falseList = append(falseList, v) // safe as above
 		}
 	}
-	if len(trueBuf) == 0 {
-		return nil, falseList
-	}
 	return trueBuf, falseList
 }
 
@@ -221,7 +215,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 // Returns (trueElements, falseElements).
 func SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 	if len(slice) == 0 {
-		return nil, nil
+		return slice, nil
 	}
 
 	i, j := 0, len(slice)-1

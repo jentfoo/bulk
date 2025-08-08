@@ -311,7 +311,11 @@ func TestSliceSplit(t *testing.T) {
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			trueSlice, falseSlice := SliceSplit(tt.input, tt.testFunc)
-			assert.Equal(t, tt.expectTrue, trueSlice)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice) // may be nil or input
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
 			assert.Equal(t, tt.expectFalse, falseSlice)
 		})
 	}
@@ -324,7 +328,11 @@ func TestSliceSplitInPlace(t *testing.T) {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			// make a copy of the test input to avoid changing it
 			trueSlice, falseSlice := SliceSplitInPlace(sliceDup(tt.input), tt.testFunc)
-			assert.Equal(t, tt.expectTrue, trueSlice)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice) // may be nil or input
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
 			assert.Equal(t, tt.expectFalse, falseSlice)
 		})
 	}
