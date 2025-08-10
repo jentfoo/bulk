@@ -106,7 +106,7 @@ evens, odds := bulk.SliceSplitInPlaceUnstable(numbers, func(n int) bool { return
 
 #### Transformation Operations
 
-##### `SliceTransform[I any, R any](input []I, conversion func(I) R) []R`
+##### `SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R`
 Converts each element using the provided conversion function.
 
 ```go
@@ -120,13 +120,13 @@ numbers := bulk.SliceTransform(func(s string) int {
 
 #### Set Operations
 
-##### `SliceToMap[T comparable](slices ...[]T) map[T]struct{}`
-Converts slices to a map for fast lookup and deduplication. Accepts multiple slices for union operations.
+##### `SliceToSet[T comparable](slices ...[]T) map[T]struct{}`
+Converts slices to a set for fast lookup and deduplication. Accepts multiple slices for union operations.
 
 ```go
 slice1 := []string{"a", "b", "c", "b"}
 slice2 := []string{"c", "d", "e"}
-set := bulk.SliceToMap(slice1, slice2)
+set := bulk.SliceToSet(slice1, slice2)
 // Result: map[string]struct{}{"a": {}, "b": {}, "c": {}, "d": {}, "e": {}} (order may vary)
 ```
 
@@ -139,8 +139,56 @@ import (
 )
 
 duplicates := []string{"apple", "banana", "apple", "cherry", "banana"}
-unique := slices.Collect(maps.Keys(bulk.SliceToMap(duplicates)))
+unique := slices.Collect(maps.Keys(bulk.SliceToSet(duplicates)))
 // Result: ["apple", "banana", "cherry"] (order may vary)
+```
+
+##### `SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{}`
+Creates a set using a key function to transform elements into comparable keys. Typically used to provide a field from within the structs within the slice.
+
+#### Counting Operations
+
+##### `SliceToCounts[T comparable](slices ...[]T) map[T]int`
+Counts occurrences of each element across multiple slices.
+
+```go
+slice1 := []string{"a", "b", "c", "b"}
+slice2 := []string{"c", "d", "a"}
+counts := bulk.SliceToCounts(slice1, slice2)
+// Result: map[string]int{"a": 2, "b": 2, "c": 2, "d": 1}
+```
+
+##### `SliceToCountsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]int`
+Counts occurrences using a key function to group elements.
+
+#### Indexing Operations
+
+##### `SliceToIndexBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]T`
+Creates an index map where each key maps to the **last** value encountered.
+
+```go
+type Person struct{ ID int; Name string }
+people := []Person{{1, "Alice"}, {2, "Bob"}, {1, "Alice_Updated"}}
+index := bulk.SliceToIndexBy(func(p Person) int { return p.ID }, people)
+// Result: map[int]Person{1: {1, "Alice_Updated"}, 2: {2, "Bob"}} (last wins)
+```
+
+#### Grouping Operations
+
+##### `SliceToGroupsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K][]T`
+Groups elements by key derived by each entry, preserving all values for each key.
+
+```go
+type Person struct{ Dept, Name string }
+people := []Person{
+    {"eng", "Alice"}, {"sales", "Bob"}, 
+    {"eng", "Charlie"}, {"sales", "Dave"},
+}
+groups := bulk.SliceToGroupsBy(func(p Person) string { return p.Dept }, people)
+// Result: map[string][]Person{
+//   "eng": [{"eng", "Alice"}, {"eng", "Charlie"}],
+//   "sales": [{"sales", "Bob"}, {"sales", "Dave"}]
+// }
 ```
 
 ---

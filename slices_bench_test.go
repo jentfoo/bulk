@@ -318,10 +318,50 @@ func BenchmarkSliceSplitInPlaceUnstable(b *testing.B) {
 	}
 }
 
-func BenchmarkSliceToMap(b *testing.B) {
+func BenchmarkSliceToSet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		for _, tc := range sliceToMapTests {
-			_ = SliceToMap(tc.input...)
+		for _, tc := range sliceToSetTests {
+			_ = SliceToSet(tc.input...)
+		}
+	}
+}
+
+func BenchmarkSliceToSetBy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceToSetByTests {
+			_ = SliceToSetBy(tc.conversion, tc.inputSlices...)
+		}
+	}
+}
+
+func BenchmarkSliceToCounts(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceToCountsTests {
+			_ = SliceToCounts(tc.input...)
+		}
+	}
+}
+
+func BenchmarkSliceToCountsBy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceToCountsByTests {
+			_ = SliceToCountsBy(tc.conversion, tc.inputSlices...)
+		}
+	}
+}
+
+func BenchmarkSliceToIndexBy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceToIndexByTests {
+			_ = SliceToIndexBy(tc.conversion, tc.inputSlices...)
+		}
+	}
+}
+
+func BenchmarkSliceToGroupsBy(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceToGroupsByTests {
+			_ = SliceToGroupsBy(tc.conversion, tc.inputSlices...)
 		}
 	}
 }
