@@ -146,6 +146,43 @@ unique := slices.Collect(maps.Keys(bulk.SliceToSet(duplicates)))
 ##### `SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{}`
 Creates a set using a key function to transform elements into comparable keys. Typically used to provide a field from within the structs within the slice.
 
+##### `SliceIntersect[T comparable](a, b []T) []T`
+Returns elements that exist in both slices, preserving order from slice a. Duplicates are automatically removed from the result.
+
+```go
+numbers1 := []int{1, 2, 3, 4, 5}
+numbers2 := []int{3, 4, 5, 6, 7}
+intersection := bulk.SliceIntersect(numbers1, numbers2)
+// Result: [3, 4, 5]
+```
+
+##### `SliceDifference[T comparable](a, b []T) []T`
+Returns elements that exist in slice a but not in slice b, preserving order from slice a. Duplicates are automatically removed from the result.
+
+```go
+numbers1 := []int{1, 2, 3, 4, 5}
+numbers2 := []int{3, 4, 5, 6, 7}
+difference := bulk.SliceDifference(numbers1, numbers2)
+// Result: [1, 2]
+```
+
+**Practical Set Operation Examples:**
+```go
+// Find common interests between users
+userA := []string{"music", "sports", "reading", "cooking"}
+userB := []string{"sports", "movies", "cooking", "travel"}
+common := bulk.SliceIntersect(userA, userB)
+// Result: ["sports", "cooking"]
+
+// Find unique preferences for user A
+unique := bulk.SliceDifference(userA, userB)
+// Result: ["music", "reading"]
+
+// Union can be achieved with SliceToSet for deduplication
+union := slices.Collect(maps.Keys(bulk.SliceToSet(userA, userB)))
+// Result: all unique elements from both slices
+```
+
 #### Counting Operations
 
 ##### `SliceToCounts[T comparable](slices ...[]T) map[T]int`

@@ -179,8 +179,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 			if isTrue {
 				trueList = append(trueList, v) // writes to earlier indices only; safe
 			} else {
-				if falseBuf == nil {
-					// Allocate when we discover the split
+				if falseBuf == nil { // Allocate when we discover the split
 					falseBuf = make([]T, 0, capGuess(n-i))
 				}
 				falseBuf = append(falseBuf, v)
@@ -358,6 +357,66 @@ func SliceIntoGroupsBy[T any, K comparable](m map[K][]T, keyfunc func(T) K, slic
 			m[key] = append(m[key], value)
 		}
 	}
+}
+
+// SliceIntersect returns elements that exist in both slices, preserving order from slice a.
+func SliceIntersect[T comparable](a, b []T) []T {
+	if len(a) == 0 {
+		return a
+	} else if len(b) == 0 {
+		return b
+	}
+
+	maxCount := len(a)
+	if len(b) < maxCount {
+		maxCount = len(b)
+	}
+
+	// Collect intersection, preserving order from slice a
+	bLookup := SliceToSet(b)
+	var result []T
+	var seen map[T]struct{}
+	for aIdx, v := range a {
+		if _, exists := bLookup[v]; exists {
+			if _, duplicate := seen[v]; !duplicate {
+				if result == nil { // allocate based of potential remaining
+					if aMax := len(a) - aIdx; aMax < maxCount {
+						maxCount = aMax // conditional because b may still have been the min
+					}
+					seen = make(map[T]struct{}, maxCount)
+					result = make([]T, 0, capGuess(maxCount))
+				}
+				seen[v] = struct{}{}
+				result = append(result, v)
+			}
+		}
+	}
+	return result
+}
+
+// SliceDifference returns elements that exist in slice a, but not in slice b, preserving order from slice a.
+func SliceDifference[T comparable](a, b []T) []T {
+	if len(a) == 0 {
+		return a
+	}
+
+	// Collect elements from a that are not in b, with deduplication
+	exclude := SliceToSet(b)
+	var result []T
+	var seen map[T]struct{}
+	for aIdx, v := range a {
+		if _, exists := exclude[v]; !exists {
+			if _, duplicate := seen[v]; !duplicate {
+				if result == nil { // allocate based of potential remaining
+					seen = make(map[T]struct{}, len(a)-aIdx)
+					result = make([]T, 0, capGuess(len(a)-aIdx))
+				}
+				seen[v] = struct{}{}
+				result = append(result, v)
+			}
+		}
+	}
+	return result
 }
 
 func sliceTotalSize[T any](slices [][]T) int {

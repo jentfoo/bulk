@@ -405,3 +405,19 @@ func BenchmarkSliceToGroupsBy(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSliceIntersect(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceSetOperationTests {
+			_ = SliceIntersect(tc.sliceA, tc.sliceB)
+		}
+	}
+}
+
+func BenchmarkSliceDifference(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceSetOperationTests {
+			_ = SliceDifference(tc.sliceA, tc.sliceB)
+		}
+	}
+}

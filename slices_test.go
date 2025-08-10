@@ -930,8 +930,8 @@ var sliceToSetTests = []struct {
 func TestSliceToSet(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToSetTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToSetTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToSet(tt.input...)
 
 			assert.Len(t, got, len(tt.expectKeys))
@@ -1050,8 +1050,8 @@ var sliceToSetByTests = []struct {
 func TestSliceToSetBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToSetByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToSetByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToSetBy(tt.conversion, tt.inputSlices...)
 
 			assert.Len(t, got, len(tt.expectKeys))
@@ -1266,8 +1266,8 @@ var sliceToCountsByTests = []struct {
 func TestSliceToCounts(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToCountsTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToCountsTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToCounts(tt.input...)
 
 			assert.Len(t, got, len(tt.expectCounts))
@@ -1299,8 +1299,8 @@ func TestSliceToCounts(t *testing.T) {
 func TestSliceToCountsBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToCountsByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToCountsByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToCountsBy(tt.conversion, tt.inputSlices...)
 
 			assert.Len(t, got, len(tt.expectCounts))
@@ -1504,8 +1504,8 @@ var sliceToGroupsByTests = []struct {
 func TestSliceToIndexBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToIndexByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToIndexByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToIndexBy(tt.conversion, tt.inputSlices...)
 
 			assert.Len(t, got, len(tt.expectIndex))
@@ -1558,8 +1558,8 @@ func TestSliceToIndexBy(t *testing.T) {
 func TestSliceToGroupsBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToGroupsByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToGroupsByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := SliceToGroupsBy(tt.conversion, tt.inputSlices...)
 
 			assert.Len(t, got, len(tt.expectGroups))
@@ -1623,6 +1623,196 @@ func TestSliceToGroupsBy(t *testing.T) {
 			"high_digit": {15, 25, 16},     // 15, 25, 16 (digits 5, 5, 6)
 		}
 		assert.Equal(t, expected, result)
+	})
+}
+
+var sliceSetOperationTests = []struct {
+	name               string
+	sliceA             []int
+	sliceB             []int
+	expectedIntersect  []int
+	expectedDifference []int
+}{
+	{
+		name:               "nil",
+		sliceA:             nil,
+		sliceB:             nil,
+		expectedIntersect:  nil,
+		expectedDifference: nil,
+	},
+	{
+		name:               "empty_both",
+		sliceA:             []int{},
+		sliceB:             []int{},
+		expectedIntersect:  nil,
+		expectedDifference: nil,
+	},
+	{
+		name:               "empty_a",
+		sliceA:             []int{},
+		sliceB:             []int{1, 2, 3},
+		expectedIntersect:  nil,
+		expectedDifference: nil,
+	},
+	{
+		name:               "empty_b",
+		sliceA:             []int{1, 2, 3},
+		sliceB:             []int{},
+		expectedIntersect:  nil,
+		expectedDifference: []int{1, 2, 3},
+	},
+	{
+		name:               "no_overlap",
+		sliceA:             []int{1, 2, 3},
+		sliceB:             []int{4, 5, 6},
+		expectedIntersect:  nil,
+		expectedDifference: []int{1, 2, 3},
+	},
+	{
+		name:               "complete_overlap",
+		sliceA:             []int{1, 2, 3},
+		sliceB:             []int{1, 2, 3},
+		expectedIntersect:  []int{1, 2, 3},
+		expectedDifference: nil,
+	},
+	{
+		name:               "partial_overlap",
+		sliceA:             []int{1, 2, 3, 4},
+		sliceB:             []int{3, 4, 5, 6},
+		expectedIntersect:  []int{3, 4},
+		expectedDifference: []int{1, 2},
+	},
+	{
+		name:               "single_overlap",
+		sliceA:             []int{1, 2, 3},
+		sliceB:             []int{3, 4, 5},
+		expectedIntersect:  []int{3},
+		expectedDifference: []int{1, 2},
+	},
+	{
+		name:               "duplicates_in_a",
+		sliceA:             []int{1, 2, 2, 3, 3, 3},
+		sliceB:             []int{2, 3, 4},
+		expectedIntersect:  []int{2, 3},
+		expectedDifference: []int{1},
+	},
+	{
+		name:               "duplicates_in_b",
+		sliceA:             []int{1, 2, 3},
+		sliceB:             []int{2, 2, 3, 3, 4, 4},
+		expectedIntersect:  []int{2, 3},
+		expectedDifference: []int{1},
+	},
+	{
+		name:               "duplicates_in_both",
+		sliceA:             []int{1, 1, 2, 2, 3, 3},
+		sliceB:             []int{2, 2, 3, 3, 4, 4},
+		expectedIntersect:  []int{2, 3},
+		expectedDifference: []int{1},
+	},
+	{
+		name:               "a_subset_of_b",
+		sliceA:             []int{2, 4},
+		sliceB:             []int{1, 2, 3, 4, 5},
+		expectedIntersect:  []int{2, 4},
+		expectedDifference: nil,
+	},
+	{
+		name:               "b_subset_of_a",
+		sliceA:             []int{1, 2, 3, 4, 5},
+		sliceB:             []int{2, 4},
+		expectedIntersect:  []int{2, 4},
+		expectedDifference: []int{1, 3, 5},
+	},
+	{
+		name:               "single_elements",
+		sliceA:             []int{1},
+		sliceB:             []int{1},
+		expectedIntersect:  []int{1},
+		expectedDifference: nil,
+	},
+	{
+		name:               "single_elements_no_match",
+		sliceA:             []int{1},
+		sliceB:             []int{2},
+		expectedIntersect:  nil,
+		expectedDifference: []int{1},
+	},
+	{
+		name:               "large_slices",
+		sliceA:             []int{1, 3, 5, 7, 9, 11, 13, 15, 17, 19},
+		sliceB:             []int{2, 4, 5, 6, 8, 9, 10, 12, 13, 14},
+		expectedIntersect:  []int{5, 9, 13},
+		expectedDifference: []int{1, 3, 7, 11, 15, 17, 19},
+	},
+}
+
+func TestSliceIntersect(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceSetOperationTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := SliceIntersect(tt.sliceA, tt.sliceB)
+			if tt.expectedIntersect == nil {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedIntersect, result)
+			}
+		})
+	}
+
+	t.Run("string_values", func(t *testing.T) {
+		a := []string{"apple", "banana", "cherry", "date"}
+		b := []string{"banana", "cherry", "elderberry", "fig"}
+		result := SliceIntersect(a, b)
+		expected := []string{"banana", "cherry"}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("order_preserved_from_a", func(t *testing.T) {
+		a := []int{3, 1, 4, 1, 5, 9}
+		b := []int{9, 5, 1, 3}
+		result := SliceIntersect(a, b)
+		expected := []int{3, 1, 5, 9} // Order from a, duplicates removed
+		assert.Equal(t, expected, result)
+	})
+}
+
+func TestSliceDifference(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceSetOperationTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := SliceDifference(tt.sliceA, tt.sliceB)
+			if tt.expectedDifference == nil {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedDifference, result)
+			}
+		})
+	}
+
+	t.Run("string_values", func(t *testing.T) {
+		a := []string{"apple", "banana", "cherry", "date"}
+		b := []string{"banana", "cherry", "elderberry", "fig"}
+		result := SliceDifference(a, b)
+		expected := []string{"apple", "date"}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("order_preserved_from_a", func(t *testing.T) {
+		a := []int{5, 3, 1, 4, 1, 5}
+		b := []int{1, 3}
+		result := SliceDifference(a, b)
+		expected := []int{5, 4} // Order from a preserved, duplicates removed for consistency
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("empty_b_returns_a", func(t *testing.T) {
+		a := []int{1, 2, 3}
+		b := []int{}
+		result := SliceDifference(a, b)
+		assert.Equal(t, a, result) // Should return original slice a
 	})
 }
 
@@ -1696,8 +1886,8 @@ func TestSliceTotalSize(t *testing.T) {
 		},
 	}
 
-	for _, tt := range sliceTotalSizeTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceTotalSizeTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			got := sliceTotalSize(tt.slices)
 			assert.Equal(t, tt.expect, got)
 		})
@@ -1707,8 +1897,8 @@ func TestSliceTotalSize(t *testing.T) {
 func TestSliceIntoSet(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToSetTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToSetTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[int]struct{})
 			SliceIntoSet(result, tt.input...)
 
@@ -1729,8 +1919,8 @@ func TestSliceIntoSet(t *testing.T) {
 func TestSliceIntoSetBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToSetByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToSetByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[string]struct{})
 			SliceIntoSetBy(result, tt.conversion, tt.inputSlices...)
 
@@ -1751,8 +1941,8 @@ func TestSliceIntoSetBy(t *testing.T) {
 func TestSliceIntoCounts(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToCountsTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToCountsTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[int]int)
 			SliceIntoCounts(result, tt.input...)
 
@@ -1773,8 +1963,8 @@ func TestSliceIntoCounts(t *testing.T) {
 func TestSliceIntoCountsBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToCountsByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToCountsByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[string]int)
 			SliceIntoCountsBy(result, tt.conversion, tt.inputSlices...)
 
@@ -1795,8 +1985,8 @@ func TestSliceIntoCountsBy(t *testing.T) {
 func TestSliceIntoIndexBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToIndexByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToIndexByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[string]int)
 			SliceIntoIndexBy(result, tt.conversion, tt.inputSlices...)
 
@@ -1817,8 +2007,8 @@ func TestSliceIntoIndexBy(t *testing.T) {
 func TestSliceIntoGroupsBy(t *testing.T) {
 	t.Parallel()
 
-	for _, tt := range sliceToGroupsByTests {
-		t.Run(tt.name, func(t *testing.T) {
+	for i, tt := range sliceToGroupsByTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			result := make(map[string][]int)
 			SliceIntoGroupsBy(result, tt.conversion, tt.inputSlices...)
 
