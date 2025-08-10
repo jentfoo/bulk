@@ -50,12 +50,7 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 					result = append(result, slice[j])
 
 					// Continue appending remaining true elements
-					for k := j + 1; k < len(slice); k++ {
-						if predicate(slice[k]) {
-							result = append(result, slice[k])
-						}
-					}
-					return result
+					return SliceFilterInto(result, predicate, slice[j+1:])
 				}
 			}
 			// No more true elements found, return consecutive view
@@ -77,15 +72,22 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 			result := make([]T, 0, falseIndex+capGuess(len(slice)-secondTrueIndex))
 			result = append(result, slice[:falseIndex]...)
 			result = append(result, slice[secondTrueIndex])
-			for i := secondTrueIndex + 1; i < len(slice); i++ {
-				if predicate(slice[i]) {
-					result = append(result, slice[i])
-				}
-			}
-			return result
+			return SliceFilterInto(result, predicate, slice[secondTrueIndex+1:])
 		}
 	}
 	return slice // all records tested to true
+}
+
+// SliceFilterInto appends elements that pass the predicate function from the input slices into dest.
+func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T {
+	for _, input := range inputs {
+		for _, v := range input {
+			if predicate(v) {
+				dest = append(dest, v)
+			}
+		}
+	}
+	return dest
 }
 
 // capGuess attempts to guess the sizing for an allocation, large allocations are reduced.
@@ -274,13 +276,13 @@ func SliceIntoSet[T comparable](m map[T]struct{}, slices ...[]T) {
 // as the key to the resulting map. This allows in a single step a combination of SliceTransform with SliceToSet,
 func SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{} {
 	result := make(map[R]struct{}, sliceTotalSize(slices))
-	SliceIntoSetBy(keyfunc, result, slices...)
+	SliceIntoSetBy(result, keyfunc, slices...)
 	return result
 }
 
 // SliceIntoSetBy accepts slices of any type with a function to convert those types while storing the result
 // as the key to the resulting map.
-func SliceIntoSetBy[I any, R comparable](keyfunc func(I) R, m map[R]struct{}, slices ...[]I) {
+func SliceIntoSetBy[I any, R comparable](m map[R]struct{}, keyfunc func(I) R, slices ...[]I) {
 	for _, slice := range slices {
 		for _, inputVal := range slice {
 			m[keyfunc(inputVal)] = struct{}{}
@@ -309,12 +311,12 @@ func SliceIntoCounts[T comparable](m map[T]int, slices ...[]T) {
 // SliceToCountsBy will count how many times each generated key is witnessed, provided through the returned map values.
 func SliceToCountsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]int {
 	result := make(map[K]int, sliceTotalSize(slices))
-	SliceIntoCountsBy(keyfunc, result, slices...)
+	SliceIntoCountsBy(result, keyfunc, slices...)
 	return result
 }
 
 // SliceIntoCountsBy accepts slices of any type and a Map with the generated keys and their counts which are added to.
-func SliceIntoCountsBy[T any, K comparable](keyfunc func(T) K, m map[K]int, slices ...[]T) {
+func SliceIntoCountsBy[T any, K comparable](m map[K]int, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
 			m[keyfunc(value)]++
@@ -326,13 +328,13 @@ func SliceIntoCountsBy[T any, K comparable](keyfunc func(T) K, m map[K]int, slic
 // Expects each key to be unique. If duplicate keys exist, later values overwrite earlier ones.
 func SliceToIndexBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]T {
 	result := make(map[K]T, sliceTotalSize(slices))
-	SliceIntoIndexBy(keyfunc, result, slices...)
+	SliceIntoIndexBy(result, keyfunc, slices...)
 	return result
 }
 
 // SliceIntoIndexBy accepts a function to convert the values to a comparable key, adding to the provided index map.
 // Expects each key to be unique. If duplicate keys exist, later values overwrite earlier ones.
-func SliceIntoIndexBy[T any, K comparable](keyfunc func(T) K, m map[K]T, slices ...[]T) {
+func SliceIntoIndexBy[T any, K comparable](m map[K]T, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
 			key := keyfunc(value)
@@ -344,12 +346,12 @@ func SliceIntoIndexBy[T any, K comparable](keyfunc func(T) K, m map[K]T, slices 
 // SliceToGroupsBy accepts a function to convert the values to a comparable key, and groups the values based on the keys.
 func SliceToGroupsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K][]T {
 	result := make(map[K][]T, sliceTotalSize(slices))
-	SliceIntoGroupsBy(keyfunc, result, slices...)
+	SliceIntoGroupsBy(result, keyfunc, slices...)
 	return result
 }
 
 // SliceIntoGroupsBy accepts a function to convert the values to a comparable key, and groups the values based on the keys.
-func SliceIntoGroupsBy[T any, K comparable](keyfunc func(T) K, m map[K][]T, slices ...[]T) {
+func SliceIntoGroupsBy[T any, K comparable](m map[K][]T, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
 			key := keyfunc(value)
