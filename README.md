@@ -120,14 +120,14 @@ numbers := bulk.SliceTransform(func(s string) int {
 
 #### Set Operations
 
-##### `SliceToMap[T comparable](slices ...[]T) map[T]bool`
+##### `SliceToMap[T comparable](slices ...[]T) map[T]struct{}`
 Converts slices to a map for fast lookup and deduplication. Accepts multiple slices for union operations.
 
 ```go
 slice1 := []string{"a", "b", "c", "b"}
 slice2 := []string{"c", "d", "e"}
 set := bulk.SliceToMap(slice1, slice2)
-// Result: map[string]bool{"a": true, "b": true, "c": true, "d": true, "e": true} (order may vary)
+// Result: map[string]struct{}{"a": {}, "b": {}, "c": {}, "d": {}, "e": {}} (order may vary)
 ```
 
 **Deduplication Pattern:**

@@ -255,11 +255,11 @@ func SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R {
 
 // SliceToMap accepts slices of a comparable type and returns a Map with the values as the key.
 // This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
-func SliceToMap[T comparable](slices ...[]T) map[T]bool {
-	result := make(map[T]bool, sliceTotalSize(slices))
+func SliceToMap[T comparable](slices ...[]T) map[T]struct{} {
+	result := make(map[T]struct{}, sliceTotalSize(slices))
 	for _, slice := range slices {
 		for _, value := range slice {
-			result[value] = true
+			result[value] = struct{}{}
 		}
 	}
 	return result
@@ -267,11 +267,11 @@ func SliceToMap[T comparable](slices ...[]T) map[T]bool {
 
 // SliceTransformToMap accepts slices of any type with a function to convert those types while storing the result
 // as the key to the resulting map. This allows in a single step a combination of SliceTransform with SliceToMap,
-func SliceTransformToMap[I any, R comparable](conversion func(I) R, slices ...[]I) map[R]bool {
-	result := make(map[R]bool, sliceTotalSize(slices))
+func SliceTransformToMap[I any, R comparable](conversion func(I) R, slices ...[]I) map[R]struct{} {
+	result := make(map[R]struct{}, sliceTotalSize(slices))
 	for _, slice := range slices {
 		for _, inputVal := range slice {
-			result[conversion(inputVal)] = true
+			result[conversion(inputVal)] = struct{}{}
 		}
 	}
 	return result

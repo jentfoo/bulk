@@ -915,11 +915,10 @@ func TestSliceToMap(t *testing.T) {
 			// Check map length
 			assert.Len(t, got, len(tt.expectKeys))
 
-			// Check all expected keys are present with value true
+			// Check all expected keys are present
 			for _, key := range tt.expectKeys {
-				val, ok := got[key]
+				_, ok := got[key]
 				assert.True(t, ok)
-				assert.True(t, val)
 			}
 
 			// Check that all map keys are in expected keys
@@ -932,11 +931,11 @@ func TestSliceToMap(t *testing.T) {
 	t.Run("string", func(t *testing.T) {
 		result := SliceToMap([][]string{{"a", "b"}, {"b", "c"}, {"c", "d"}}...)
 
-		expected := map[string]bool{
-			"a": true,
-			"b": true,
-			"c": true,
-			"d": true,
+		expected := map[string]struct{}{
+			"a": {},
+			"b": {},
+			"c": {},
+			"d": {},
 		}
 		assert.Len(t, result, 4)
 		assert.Equal(t, expected, result)
@@ -1039,11 +1038,10 @@ func TestSliceTransformToMap(t *testing.T) {
 			// Check map length
 			assert.Len(t, got, len(tt.expectKeys))
 
-			// Check all expected keys are present with value true
+			// Check all expected keys are present
 			for _, key := range tt.expectKeys {
-				val, ok := got[key]
-				assert.True(t, ok, "expected key %q not found", key)
-				assert.True(t, val, "expected key %q to have value true", key)
+				_, ok := got[key]
+				assert.True(t, ok)
 			}
 
 			// Check that all map keys are in expected keys
@@ -1058,11 +1056,11 @@ func TestSliceTransformToMap(t *testing.T) {
 		slice2 := []string{"dd", "eeeee"}
 		result := SliceTransformToMap(func(s string) int { return len(s) }, slice1, slice2)
 
-		expected := map[int]bool{
-			1: true, // "a"
-			2: true, // "bb", "dd"
-			3: true, // "ccc"
-			5: true, // "eeeee"
+		expected := map[int]struct{}{
+			1: {}, // "a"
+			2: {}, // "bb", "dd"
+			3: {}, // "ccc"
+			5: {}, // "eeeee"
 		}
 		assert.Equal(t, expected, result)
 	})
@@ -1074,10 +1072,10 @@ func TestSliceTransformToMap(t *testing.T) {
 
 		result := SliceTransformToMap(func(p Point) Point { return p }, points1, points2)
 
-		expected := map[Point]bool{
-			{1, 2}: true,
-			{3, 4}: true,
-			{5, 6}: true,
+		expected := map[Point]struct{}{
+			{1, 2}: {},
+			{3, 4}: {},
+			{5, 6}: {},
 		}
 		assert.Equal(t, expected, result)
 	})
@@ -1094,9 +1092,9 @@ func TestSliceTransformToMap(t *testing.T) {
 			return "odd_ending"
 		}, nums1, nums2)
 
-		expected := map[string]bool{
-			"even_ending": true, // 10, 20, 30
-			"odd_ending":  true, // 15, 25, 35
+		expected := map[string]struct{}{
+			"even_ending": {}, // 10, 20, 30
+			"odd_ending":  {}, // 15, 25, 35
 		}
 		assert.Equal(t, expected, result)
 	})
