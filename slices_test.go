@@ -464,6 +464,28 @@ func TestSliceFilter(t *testing.T) {
 	}
 }
 
+func TestSliceFilterInto(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			resultTrue := SliceFilterInto(make([]int, 0), tt.testFunc, tt.input)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, resultTrue)
+			} else {
+				assert.Equal(t, tt.expectTrue, resultTrue)
+			}
+
+			resultFalse := SliceFilterInto(make([]int, 0), func(v int) bool { return !tt.testFunc(v) }, tt.input)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, resultFalse)
+			} else {
+				assert.Equal(t, tt.expectFalse, resultFalse)
+			}
+		})
+	}
+}
+
 func TestSliceFilterInPlace(t *testing.T) {
 	t.Parallel()
 

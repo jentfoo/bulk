@@ -109,6 +109,18 @@ func SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T {
 	return slice[:n]
 }
 
+// SliceFilterInto appends elements that pass the predicate function from the input slices into dest.
+func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T {
+	for _, input := range inputs {
+		for _, v := range input {
+			if predicate(v) {
+				dest = append(dest, v)
+			}
+		}
+	}
+	return dest
+}
+
 // SliceSplit partitions elements based on the predicate function.
 // Returns (trueElements, falseElements).
 func SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
