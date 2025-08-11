@@ -27,6 +27,7 @@
 
 * **Zero-allocation InPlace variants** for maximum performance
 * **Conditional optimizations** that avoid copies when safe
+* **Multi-slice operations** enabling intelligent optimizations across all slices
 * Generic support using Go 1.18+ type parameters
 * Simple, consistent API in a single package
 
@@ -52,54 +53,54 @@ import "github.com/go-analyze/bulk"
 
 #### Filtering
 
-##### `SliceFilter[T any](slice []T, predicate func(v T) bool) []T`
-Filters elements that pass the predicate function. **Zero allocations** when all elements pass or fail.
+##### `SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T`
+Filters elements that pass the predicate function from one or multiple slices. **Zero allocations** when all true elements are consecutive.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6}
-evens := bulk.SliceFilter(numbers, func(n int) bool { return n%2 == 0 })
+evens := bulk.SliceFilter(func(n int) bool { return n%2 == 0 }, numbers)
 // Result: [2, 4, 6]
 // Original slice unchanged: [1, 2, 3, 4, 5, 6]
 ```
 
-##### `SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T`
+##### `SliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T`
 **Zero-allocation** filtering by reusing input slice memory.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
-evens := bulk.SliceFilterInPlace(numbers, func(n int) bool { return n%2 == 0 })
+evens := bulk.SliceFilterInPlace(func(n int) bool { return n%2 == 0 }, numbers)
 // Result: [2, 4, 6]
 // Warning: numbers slice is now corrupted and must be discarded
 ```
 
 #### Partitioning Operations
 
-##### `SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
-Partitions elements into two slices based on predicate.
+##### `SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T)`
+Partitions elements from one or multiple slices into two slices based on predicate.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6}
-evens, odds := bulk.SliceSplit(numbers, func(n int) bool { return n%2 == 0 })
+evens, odds := bulk.SliceSplit(func(n int) bool { return n%2 == 0 }, numbers)
 // evens: [2, 4, 6]
 // odds: [1, 3, 5]
 ```
 
-##### `SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
+##### `SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T)`
 **Memory-efficient** partitioning that reuses the input slice for one partition.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
-evens, odds := bulk.SliceSplitInPlace(numbers, func(n int) bool { return n%2 == 0 })
+evens, odds := bulk.SliceSplitInPlace(func(n int) bool { return n%2 == 0 }, numbers)
 // evens: [2, 4, 6] (reuses original slice memory)
 // odds: [1, 3, 5] (new allocation only when needed)
 ```
 
-##### `SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T, []T)`
+##### `SliceSplitInPlaceUnstable[T any](predicate func(v T) bool, slice []T) ([]T, []T)`
 **Fastest** partitioning using two-pointer technique. Element order may change.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
-evens, odds := bulk.SliceSplitInPlaceUnstable(numbers, func(n int) bool { return n%2 == 0 })
+evens, odds := bulk.SliceSplitInPlaceUnstable(func(n int) bool { return n%2 == 0 }, numbers)
 // evens: [2, 4, 6] (order may differ from input)
 // odds: [1, 3, 5] (order may differ from input)
 ```

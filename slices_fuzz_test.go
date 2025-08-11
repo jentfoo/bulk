@@ -30,9 +30,9 @@ func FuzzSliceFilter(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		result := SliceFilter(input, func(b byte) bool {
+		result := SliceFilter(func(b byte) bool {
 			return b%2 == 0
-		})
+		}, input)
 		verifyByteSliceMod(t, result, 2, 0)
 	})
 }
@@ -43,9 +43,9 @@ func FuzzSliceFilterInPlace(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		result := SliceFilterInPlace(input, func(i byte) bool {
+		result := SliceFilterInPlace(func(i byte) bool {
 			return i%2 == 0
-		})
+		}, input)
 		verifyByteSliceMod(t, result, 2, 0)
 	})
 }
@@ -56,9 +56,9 @@ func FuzzSliceSplit(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		even, odd := SliceSplit(input, func(i byte) bool {
+		even, odd := SliceSplit(func(i byte) bool {
 			return i%2 == 0
-		})
+		}, input)
 		verifyByteSliceMod(t, even, 2, 0)
 		verifyByteSliceMod(t, odd, 2, 1)
 	})
@@ -70,9 +70,9 @@ func FuzzSliceSplitInPlace(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		even, odd := SliceSplitInPlace(input, func(b byte) bool {
+		even, odd := SliceSplitInPlace(func(b byte) bool {
 			return b%2 == 0
-		})
+		}, input)
 		verifyByteSliceMod(t, even, 2, 0)
 		verifyByteSliceMod(t, odd, 2, 1)
 	})
@@ -84,9 +84,9 @@ func FuzzSliceSplitInPlaceUnstable(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, input []byte) {
-		even, odd := SliceSplitInPlaceUnstable(input, func(b byte) bool {
+		even, odd := SliceSplitInPlaceUnstable(func(b byte) bool {
 			return b%2 == 0
-		})
+		}, input)
 		verifyByteSliceMod(t, even, 2, 0)
 		verifyByteSliceMod(t, odd, 2, 1)
 	})

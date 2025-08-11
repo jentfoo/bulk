@@ -2,7 +2,28 @@ package bulk
 
 // SliceFilter returns elements that pass the predicate function.
 // May return the original slice if all elements pass (no allocation).
-func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
+func SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T {
+	switch len(slices) {
+	case 0:
+		return nil
+	case 1:
+		return singleSliceFilter(predicate, slices[0])
+	}
+
+	results := make([][]T, 0, len(slices))
+	for i, slice := range slices {
+		partResult := singleSliceFilter(predicate, slice)
+		if len(partResult) > 0 || i == 0 /* ensure at least one result, even if empty */ {
+			if len(results) == 1 && len(results[0]) == 0 {
+				results = results[:0] // remove first empty result now that we have a non-empty result
+			}
+			results = append(results, partResult)
+		}
+	}
+	return sliceConcat(results)
+}
+
+func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
 	for falseIndex, v := range slice {
 		if predicate(v) {
 			continue // continue till first false is found
@@ -78,6 +99,19 @@ func SliceFilter[T any](slice []T, predicate func(v T) bool) []T {
 	return slice // all records tested to true
 }
 
+// sliceConcat is similar to slices.Concat (which is why API is not elevated),
+// but differs in if provided a single slice it's returned without a copy.
+func sliceConcat[T any](slices [][]T) []T {
+	if len(slices) == 1 {
+		return slices[0]
+	}
+	result := make([]T, 0, sliceTotalSize(slices))
+	for _, slice := range slices {
+		result = append(result, slice...)
+	}
+	return result
+}
+
 // SliceFilterInto appends elements that pass the predicate function from the input slices into dest.
 func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T {
 	for _, input := range inputs {
@@ -90,17 +124,9 @@ func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T
 	return dest
 }
 
-// capGuess attempts to guess the sizing for an allocation, large allocations are reduced.
-func capGuess(remaining int) int {
-	if remaining > 2048 {
-		return remaining / 2
-	}
-	return remaining
-}
-
 // SliceFilterInPlace returns elements that pass the predicate function.
 // Input slice is modified and must be discarded after calling.
-func SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T {
+func SliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T {
 	var n int
 	for i := range slice {
 		if predicate(slice[i]) {
@@ -113,7 +139,39 @@ func SliceFilterInPlace[T any](slice []T, predicate func(v T) bool) []T {
 
 // SliceSplit partitions elements based on the predicate function.
 // Returns (trueElements, falseElements).
-func SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
+func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
+	switch len(slices) {
+	case 0:
+		return nil, nil
+	case 1:
+		return singleSliceSplit(predicate, slices[0])
+	}
+
+	trueResults := make([][]T, 0, len(slices))
+	falseResults := make([][]T, 0, len(slices))
+	for i, slice := range slices {
+		predTrue, predFalse := singleSliceSplit(predicate, slice)
+		if len(predTrue) > 0 || i == 0 /* ensure at least one result */ {
+			if len(trueResults) == 1 && len(trueResults[0]) == 0 {
+				trueResults = trueResults[:0] // remove the previous empty slice
+			}
+			trueResults = append(trueResults, predTrue)
+		}
+		if len(predFalse) > 0 || i == 0 {
+			if len(falseResults) == 1 && len(falseResults[0]) == 0 {
+				falseResults = falseResults[:0] // remove the previous empty slice
+			}
+			falseResults = append(falseResults, predFalse)
+		}
+	}
+	trueResult := sliceConcat(trueResults)
+	falseResult := sliceConcat(falseResults)
+	return trueResult, falseResult
+}
+
+// SliceSplit partitions elements based on the predicate function.
+// Returns (trueElements, falseElements).
+func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 	if len(slice) == 0 {
 		return slice, nil
 	}
@@ -161,7 +219,7 @@ func SliceSplit[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 // Input slice is modified and must be discarded after calling. Resulting slices will remain in the original order.
 // If order is not important use SliceSplitInPlaceUnstable for an even faster implementation.
 // Returns (trueElements, falseElements).
-func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
+func SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 	n := len(slice)
 	if n == 0 {
 		return slice, nil
@@ -212,7 +270,7 @@ func SliceSplitInPlace[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
 // Input slice is modified and must be discarded after calling.
 // Resulting slices order may change from the original input.
 // Returns (trueElements, falseElements).
-func SliceSplitInPlaceUnstable[T any](slice []T, predicate func(v T) bool) ([]T, []T) {
+func SliceSplitInPlaceUnstable[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 	if len(slice) == 0 {
 		return slice, nil
 	}
@@ -417,6 +475,14 @@ func SliceDifference[T comparable](a, b []T) []T {
 		}
 	}
 	return result
+}
+
+// capGuess attempts to guess the sizing for an allocation, large allocations are reduced.
+func capGuess(remaining int) int {
+	if remaining > 2048 {
+		return remaining / 2
+	}
+	return remaining
 }
 
 func sliceTotalSize[T any](slices [][]T) int {

@@ -432,6 +432,162 @@ var sliceTestCases = []struct {
 	},
 }
 
+var sliceMultipleTestCases = []struct {
+	name        string
+	slices      [][]int
+	testFunc    func(v int) bool
+	expectTrue  []int
+	expectFalse []int
+}{
+	{
+		name:        "two_empty_slices",
+		slices:      [][]int{{}, {}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  nil,
+		expectFalse: nil,
+	},
+	{
+		name:        "empty_first_nonempty_second",
+		slices:      [][]int{{}, {1, 2, 3}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3},
+		expectFalse: []int{2},
+	},
+	{
+		name:        "nonempty_first_empty_second",
+		slices:      [][]int{{1, 2, 3}, {}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3},
+		expectFalse: []int{2},
+	},
+	{
+		name:        "both_with_matching_elements",
+		slices:      [][]int{{1, 2, 3}, {4, 5, 6}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3, 5},
+		expectFalse: []int{2, 4, 6},
+	},
+	{
+		name:        "first_no_matches_second_has_matches",
+		slices:      [][]int{{2, 4, 6}, {1, 3, 5}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3, 5},
+		expectFalse: []int{2, 4, 6},
+	},
+	{
+		name:        "first_has_matches_second_no_matches",
+		slices:      [][]int{{1, 3, 5}, {2, 4, 6}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3, 5},
+		expectFalse: []int{2, 4, 6},
+	},
+	{
+		name:        "three_slices_mixed_results",
+		slices:      [][]int{{1, 2}, {}, {3, 4, 5}},
+		testFunc:    func(v int) bool { return v >= 3 },
+		expectTrue:  []int{3, 4, 5},
+		expectFalse: []int{1, 2},
+	},
+	{
+		name:        "all_elements_match",
+		slices:      [][]int{{1, 3}, {5, 7}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3, 5, 7},
+		expectFalse: nil,
+	},
+	{
+		name:        "no_elements_match",
+		slices:      [][]int{{2, 4}, {6, 8}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  nil,
+		expectFalse: []int{2, 4, 6, 8},
+	},
+	{
+		name:        "single_slice_compatibility",
+		slices:      [][]int{{1, 2, 3, 4, 5}},
+		testFunc:    func(v int) bool { return v >= 3 },
+		expectTrue:  []int{3, 4, 5},
+		expectFalse: []int{1, 2},
+	},
+	{
+		name:        "capacity_preservation_test",
+		slices:      [][]int{make([]int, 0, 10), {1, 2, 3}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2, 3},
+		expectFalse: nil,
+	},
+	{
+		name:        "multiple_empty_slices_with_capacity",
+		slices:      [][]int{make([]int, 0, 5), make([]int, 0, 8), {1, 2}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2},
+		expectFalse: nil,
+	},
+	{
+		name:        "zero_slices",
+		slices:      [][]int{},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  nil,
+		expectFalse: nil,
+	},
+	{
+		name:        "first_empty_second_empty_third_has_results",
+		slices:      [][]int{{}, {}, {1, 2, 3}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3},
+		expectFalse: []int{2},
+	},
+	{
+		name:        "many_empties_then_results",
+		slices:      [][]int{{}, {}, {}, {}, {5, 6, 7}},
+		testFunc:    func(v int) bool { return v > 5 },
+		expectTrue:  []int{6, 7},
+		expectFalse: []int{5},
+	},
+	{
+		name:        "trigger_single_result_optimization_filter",
+		slices:      [][]int{{}, {}, {1, 2, 3}, {}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2, 3},
+		expectFalse: nil,
+	},
+	{
+		name:        "trigger_single_result_optimization_split",
+		slices:      [][]int{{}, {1, 2, 3}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3},
+		expectFalse: []int{2},
+	},
+	{
+		name:        "alternating_empty_nonempty",
+		slices:      [][]int{{}, {1}, {}, {2}, {}, {3}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  []int{1, 3},
+		expectFalse: []int{2},
+	},
+	{
+		name:        "all_but_first_empty",
+		slices:      [][]int{{1, 2, 3}, {}, {}, {}},
+		testFunc:    func(v int) bool { return v >= 2 },
+		expectTrue:  []int{2, 3},
+		expectFalse: []int{1},
+	},
+	{
+		name:        "split_one_empty_true_one_empty_false",
+		slices:      [][]int{{}, {2, 4, 6}},
+		testFunc:    func(v int) bool { return v%2 == 1 },
+		expectTrue:  nil,
+		expectFalse: []int{2, 4, 6},
+	},
+	{
+		name:        "split_triggers_dual_single_optimization",
+		slices:      [][]int{{}, {1, 2, 3}},
+		testFunc:    func(v int) bool { return v >= 2 },
+		expectTrue:  []int{2, 3},
+		expectFalse: []int{1},
+	},
+}
+
 func sliceDup[T any](s []T) []T {
 	result := make([]T, len(s))
 	copy(result, s)
@@ -443,7 +599,7 @@ func TestSliceFilter(t *testing.T) {
 
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
-			trueSlice := SliceFilter(tt.input, tt.testFunc)
+			trueSlice := SliceFilter(tt.testFunc, tt.input)
 			if len(tt.expectTrue) == 0 {
 				assert.Empty(t, trueSlice)
 			} else {
@@ -452,7 +608,7 @@ func TestSliceFilter(t *testing.T) {
 			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
 			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
 
-			falseSlice := SliceFilter(tt.input, func(v int) bool { return !tt.testFunc(v) })
+			falseSlice := SliceFilter(func(v int) bool { return !tt.testFunc(v) }, tt.input)
 			if len(tt.expectFalse) == 0 {
 				assert.Empty(t, falseSlice)
 			} else {
@@ -462,6 +618,30 @@ func TestSliceFilter(t *testing.T) {
 			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
+
+	// Multi-slice test cases
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice := SliceFilter(tt.testFunc, tt.slices...)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			falseSlice := SliceFilter(func(v int) bool { return !tt.testFunc(v) }, tt.slices...)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+
+	t.Run("zero_slices_direct", func(t *testing.T) {
+		result := SliceFilter(func(v int) bool { return v > 0 })
+		assert.Nil(t, result)
+	})
 }
 
 func TestSliceFilterInto(t *testing.T) {
@@ -492,7 +672,7 @@ func TestSliceFilterInPlace(t *testing.T) {
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			// make a copy of the test input to avoid changing it
-			slice := SliceFilterInPlace(sliceDup(tt.input), tt.testFunc)
+			slice := SliceFilterInPlace(tt.testFunc, sliceDup(tt.input))
 			if len(tt.expectTrue) == 0 {
 				assert.Empty(t, slice)
 			} else {
@@ -507,7 +687,7 @@ func TestSliceSplit(t *testing.T) {
 
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
-			trueSlice, falseSlice := SliceSplit(tt.input, tt.testFunc)
+			trueSlice, falseSlice := SliceSplit(tt.testFunc, tt.input)
 			if len(tt.expectTrue) == 0 {
 				assert.Empty(t, trueSlice) // may be nil or input
 			} else {
@@ -522,6 +702,29 @@ func TestSliceSplit(t *testing.T) {
 			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
+
+	// Multi-slice test cases
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice, falseSlice := SliceSplit(tt.testFunc, tt.slices...)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+
+	t.Run("zero_slices_direct", func(t *testing.T) {
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v > 0 })
+		assert.Nil(t, trueResult)
+		assert.Nil(t, falseResult)
+	})
 }
 
 func TestSliceSplitInPlace(t *testing.T) {
@@ -530,7 +733,7 @@ func TestSliceSplitInPlace(t *testing.T) {
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			// make a copy of the test input to avoid changing it
-			trueSlice, falseSlice := SliceSplitInPlace(sliceDup(tt.input), tt.testFunc)
+			trueSlice, falseSlice := SliceSplitInPlace(tt.testFunc, sliceDup(tt.input))
 			if len(tt.expectTrue) == 0 {
 				assert.Empty(t, trueSlice) // may be nil or input
 			} else {
@@ -553,20 +756,19 @@ func TestSliceSplitInPlaceUnstable(t *testing.T) {
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			// make a copy of the test input to avoid changing it
-			trueSlice, falseSlice := SliceSplitInPlaceUnstable(sliceDup(tt.input), tt.testFunc)
+			trueSlice, falseSlice := SliceSplitInPlaceUnstable(tt.testFunc, sliceDup(tt.input))
 			assert.ElementsMatch(t, tt.expectTrue, trueSlice)
 			assert.ElementsMatch(t, tt.expectFalse, falseSlice)
 		})
 	}
 }
 
-// TestSliceFilterCapacity tests that SliceFilter returns slices with appropriate capacity
 func TestSliceFilterCapacity(t *testing.T) {
 	t.Parallel()
 
 	t.Run("all_pass_returns_original_slice", func(t *testing.T) {
 		input := []int{2, 4, 6, 8}
-		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+		result := SliceFilter(func(v int) bool { return v%2 == 0 }, input)
 
 		// Should return the exact same slice (view optimization)
 		assert.Equal(t, input, result)
@@ -580,7 +782,7 @@ func TestSliceFilterCapacity(t *testing.T) {
 
 	t.Run("consecutive_suffix_returns_view", func(t *testing.T) {
 		input := []int{1, 3, 6, 7, 8, 9}
-		result := SliceFilter(input, func(v int) bool { return v >= 6 })
+		result := SliceFilter(func(v int) bool { return v >= 6 }, input)
 
 		// Should return a view of the suffix [6, 7, 8, 9]
 		assert.Equal(t, []int{6, 7, 8, 9}, result)
@@ -592,7 +794,7 @@ func TestSliceFilterCapacity(t *testing.T) {
 
 	t.Run("consecutive_prefix_returns_view", func(t *testing.T) {
 		input := []int{2, 4, 6, 1, 3, 5}
-		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+		result := SliceFilter(func(v int) bool { return v%2 == 0 }, input)
 
 		// Should return a view of prefix [2, 4, 6] - but this case requires allocation due to non-consecutive
 		assert.Equal(t, []int{2, 4, 6}, result)
@@ -602,7 +804,7 @@ func TestSliceFilterCapacity(t *testing.T) {
 
 	t.Run("empty_result_retains_original_capacity", func(t *testing.T) {
 		input := []int{1, 3, 5, 7}
-		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+		result := SliceFilter(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Empty(t, result)
 		// Empty result from SliceFilter returns slice[:0] which retains original capacity
@@ -611,7 +813,7 @@ func TestSliceFilterCapacity(t *testing.T) {
 
 	t.Run("non_consecutive_allocates_with_reasonable_capacity", func(t *testing.T) {
 		input := []int{2, 1, 4, 3, 6, 5, 8}
-		result := SliceFilter(input, func(v int) bool { return v%2 == 0 })
+		result := SliceFilter(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Equal(t, []int{2, 4, 6, 8}, result)
 		// Should allocate with capacity >= length of result
@@ -621,13 +823,12 @@ func TestSliceFilterCapacity(t *testing.T) {
 	})
 }
 
-// TestSliceSplitCapacity tests that SliceSplit returns slices with appropriate capacity
 func TestSliceSplitCapacity(t *testing.T) {
 	t.Parallel()
 
 	t.Run("all_true_returns_original_slice", func(t *testing.T) {
 		input := []int{2, 4, 6, 8}
-		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+		trueSlice, falseSlice := SliceSplit(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Equal(t, input, trueSlice)
 		assert.Empty(t, falseSlice)
@@ -636,7 +837,7 @@ func TestSliceSplitCapacity(t *testing.T) {
 
 	t.Run("all_false_returns_original_slice", func(t *testing.T) {
 		input := []int{1, 3, 5, 7}
-		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+		trueSlice, falseSlice := SliceSplit(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Empty(t, trueSlice)
 		assert.Equal(t, input, falseSlice)
@@ -645,7 +846,7 @@ func TestSliceSplitCapacity(t *testing.T) {
 
 	t.Run("split_allocates_appropriate_capacity", func(t *testing.T) {
 		input := []int{1, 2, 3, 4, 5, 6, 7, 8}
-		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+		trueSlice, falseSlice := SliceSplit(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Equal(t, []int{2, 4, 6, 8}, trueSlice)
 		assert.Equal(t, []int{1, 3, 5, 7}, falseSlice)
@@ -661,7 +862,7 @@ func TestSliceSplitCapacity(t *testing.T) {
 
 	t.Run("first_element_true_capacity_allocation", func(t *testing.T) {
 		input := []int{2, 1, 4, 3, 6}
-		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+		trueSlice, falseSlice := SliceSplit(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Equal(t, []int{2, 4, 6}, trueSlice)
 		assert.Equal(t, []int{1, 3}, falseSlice)
@@ -673,7 +874,7 @@ func TestSliceSplitCapacity(t *testing.T) {
 
 	t.Run("first_element_false_capacity_allocation", func(t *testing.T) {
 		input := []int{1, 2, 3, 4, 5}
-		trueSlice, falseSlice := SliceSplit(input, func(v int) bool { return v%2 == 0 })
+		trueSlice, falseSlice := SliceSplit(func(v int) bool { return v%2 == 0 }, input)
 
 		assert.Equal(t, []int{2, 4}, trueSlice)
 		assert.Equal(t, []int{1, 3, 5}, falseSlice)
@@ -684,7 +885,6 @@ func TestSliceSplitCapacity(t *testing.T) {
 	})
 }
 
-// TestSliceSplitInPlaceCapacity tests capacity behavior of in-place split functions
 func TestSliceSplitInPlaceCapacity(t *testing.T) {
 	t.Parallel()
 
@@ -694,7 +894,7 @@ func TestSliceSplitInPlaceCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlace(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Equal(t, []int{2, 4, 6}, trueSlice)
 		assert.Equal(t, []int{1, 3}, falseSlice)
@@ -711,7 +911,7 @@ func TestSliceSplitInPlaceCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlace(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Equal(t, []int{2, 4}, trueSlice)
 		assert.Equal(t, []int{1, 3, 5}, falseSlice)
@@ -728,7 +928,7 @@ func TestSliceSplitInPlaceCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlace(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Equal(t, input, trueSlice)
 		assert.Empty(t, falseSlice)
@@ -741,7 +941,7 @@ func TestSliceSplitInPlaceCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlace(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlace(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Empty(t, trueSlice)
 		assert.Equal(t, input, falseSlice)
@@ -749,7 +949,6 @@ func TestSliceSplitInPlaceCapacity(t *testing.T) {
 	})
 }
 
-// TestSliceSplitInPlaceUnstableCapacity tests capacity behavior of unstable in-place split
 func TestSliceSplitInPlaceUnstableCapacity(t *testing.T) {
 	t.Parallel()
 
@@ -759,7 +958,7 @@ func TestSliceSplitInPlaceUnstableCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlaceUnstable(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		// Both slices should use the original array
 		totalLen := len(trueSlice) + len(falseSlice)
@@ -783,7 +982,7 @@ func TestSliceSplitInPlaceUnstableCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlaceUnstable(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Equal(t, originalCap, cap(trueSlice))
 		assert.Empty(t, falseSlice)
@@ -795,7 +994,7 @@ func TestSliceSplitInPlaceUnstableCapacity(t *testing.T) {
 		inputCopy := sliceDup(input)
 
 		trueSlice, falseSlice :=
-			SliceSplitInPlaceUnstable(inputCopy, func(v int) bool { return v%2 == 0 })
+			SliceSplitInPlaceUnstable(func(v int) bool { return v%2 == 0 }, inputCopy)
 
 		assert.Empty(t, trueSlice)
 		assert.Equal(t, originalCap, cap(falseSlice))
@@ -2024,4 +2223,75 @@ func TestSliceIntoGroupsBy(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSliceConcat(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty input", func(t *testing.T) {
+		result := sliceConcat([][]int{})
+		assert.Equal(t, []int{}, result)
+	})
+
+	t.Run("single slice - no copy optimization", func(t *testing.T) {
+		original := []int{1, 2, 3}
+		input := [][]int{original}
+		result := sliceConcat(input)
+
+		// Should return same slice (no copy)
+		assert.Same(t, &original[0], &result[0])
+		assert.Equal(t, []int{1, 2, 3}, result)
+	})
+
+	t.Run("single empty slice", func(t *testing.T) {
+		original := []int{}
+		input := [][]int{original}
+		result := sliceConcat(input)
+
+		// Should return same slice reference
+		assert.Equal(t, []int{}, result)
+	})
+
+	t.Run("multiple slices", func(t *testing.T) {
+		input := [][]int{{1, 2}, {3, 4}, {5, 6}}
+		result := sliceConcat(input)
+
+		expected := []int{1, 2, 3, 4, 5, 6}
+		assert.Equal(t, expected, result)
+
+		// Should be a new allocation (copy made)
+		assert.NotSame(t, &input[0][0], &result[0])
+	})
+
+	t.Run("multiple slices with empty", func(t *testing.T) {
+		input := [][]int{{1, 2}, {}, {3, 4}}
+		result := sliceConcat(input)
+
+		expected := []int{1, 2, 3, 4}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("multiple empty slices", func(t *testing.T) {
+		input := [][]int{{}, {}, {}}
+		result := sliceConcat(input)
+
+		expected := []int{}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("single slice with nil elements", func(t *testing.T) {
+		input := [][]int{nil}
+		result := sliceConcat(input)
+
+		// Should return the nil slice directly
+		assert.Nil(t, result)
+	})
+
+	t.Run("multiple slices with nil elements", func(t *testing.T) {
+		input := [][]int{{1, 2}, nil, {3, 4}}
+		result := sliceConcat(input)
+
+		expected := []int{1, 2, 3, 4}
+		assert.Equal(t, expected, result)
+	})
 }
