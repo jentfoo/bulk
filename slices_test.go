@@ -438,6 +438,10 @@ var sliceMultipleTestCases = []struct {
 	testFunc    func(v int) bool
 	expectTrue  []int
 	expectFalse []int
+	trueCapMin  int
+	trueCapMax  int
+	falseCapMin int
+	falseCapMax int
 }{
 	{
 		name:        "two_empty_slices",
@@ -445,6 +449,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  nil,
 		expectFalse: nil,
+		trueCapMin:  0,
+		trueCapMax:  0,
+		falseCapMin: 0,
+		falseCapMax: 0,
 	},
 	{
 		name:        "empty_first_nonempty_second",
@@ -452,6 +460,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3},
 		expectFalse: []int{2},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "nonempty_first_empty_second",
@@ -459,6 +471,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3},
 		expectFalse: []int{2},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "both_with_matching_elements",
@@ -466,6 +482,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3, 5},
 		expectFalse: []int{2, 4, 6},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "first_no_matches_second_has_matches",
@@ -473,6 +493,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3, 5},
 		expectFalse: []int{2, 4, 6},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "first_has_matches_second_no_matches",
@@ -480,6 +504,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3, 5},
 		expectFalse: []int{2, 4, 6},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "three_slices_mixed_results",
@@ -487,6 +515,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 3 },
 		expectTrue:  []int{3, 4, 5},
 		expectFalse: []int{1, 2},
+		trueCapMin:  3,
+		trueCapMax:  5,
+		falseCapMin: 2,
+		falseCapMax: 5,
 	},
 	{
 		name:        "all_elements_match",
@@ -494,6 +526,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3, 5, 7},
 		expectFalse: nil,
+		trueCapMin:  4,
+		trueCapMax:  4,
+		falseCapMin: 0,
+		falseCapMax: 4,
 	},
 	{
 		name:        "no_elements_match",
@@ -501,6 +537,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  nil,
 		expectFalse: []int{2, 4, 6, 8},
+		trueCapMin:  0,
+		trueCapMax:  4,
+		falseCapMin: 4,
+		falseCapMax: 4,
 	},
 	{
 		name:        "single_slice_compatibility",
@@ -508,6 +548,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 3 },
 		expectTrue:  []int{3, 4, 5},
 		expectFalse: []int{1, 2},
+		trueCapMin:  3,
+		trueCapMax:  5,
+		falseCapMin: 2,
+		falseCapMax: 5,
 	},
 	{
 		name:        "capacity_preservation_test",
@@ -515,6 +559,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  []int{1, 2, 3},
 		expectFalse: nil,
+		trueCapMin:  3,
+		trueCapMax:  10,
+		falseCapMin: 0,
+		falseCapMax: 10,
 	},
 	{
 		name:        "multiple_empty_slices_with_capacity",
@@ -522,6 +570,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  []int{1, 2},
 		expectFalse: nil,
+		trueCapMin:  2,
+		trueCapMax:  8,
+		falseCapMin: 0,
+		falseCapMax: 8,
 	},
 	{
 		name:        "zero_slices",
@@ -529,6 +581,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  nil,
 		expectFalse: nil,
+		trueCapMin:  0,
+		trueCapMax:  0,
+		falseCapMin: 0,
+		falseCapMax: 0,
 	},
 	{
 		name:        "first_empty_second_empty_third_has_results",
@@ -536,6 +592,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3},
 		expectFalse: []int{2},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "many_empties_then_results",
@@ -543,6 +603,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 5 },
 		expectTrue:  []int{6, 7},
 		expectFalse: []int{5},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "trigger_single_result_optimization_filter",
@@ -550,13 +614,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  []int{1, 2, 3},
 		expectFalse: nil,
-	},
-	{
-		name:        "trigger_single_result_optimization_split",
-		slices:      [][]int{{}, {1, 2, 3}},
-		testFunc:    func(v int) bool { return v%2 == 1 },
-		expectTrue:  []int{1, 3},
-		expectFalse: []int{2},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 0,
+		falseCapMax: 3,
 	},
 	{
 		name:        "alternating_empty_nonempty",
@@ -564,6 +625,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  []int{1, 3},
 		expectFalse: []int{2},
+		trueCapMin:  2,
+		trueCapMax:  2,
+		falseCapMin: 1,
+		falseCapMax: 2,
 	},
 	{
 		name:        "all_but_first_empty",
@@ -571,6 +636,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 2 },
 		expectTrue:  []int{2, 3},
 		expectFalse: []int{1},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "split_one_empty_true_one_empty_false",
@@ -578,6 +647,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v%2 == 1 },
 		expectTrue:  nil,
 		expectFalse: []int{2, 4, 6},
+		trueCapMin:  0,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
 	},
 	{
 		name:        "split_triggers_dual_single_optimization",
@@ -585,6 +658,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v >= 2 },
 		expectTrue:  []int{2, 3},
 		expectFalse: []int{1},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 1,
+		falseCapMax: 3,
 	},
 	{
 		name:        "empty_capacity_first_higher",
@@ -592,6 +669,10 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v < 0 },
 		expectTrue:  nil,
 		expectFalse: []int{1, 2, 3},
+		trueCapMin:  0,
+		trueCapMax:  20,
+		falseCapMin: 3,
+		falseCapMax: 20,
 	},
 	{
 		name:        "empty_capacity_second_higher",
@@ -599,20 +680,230 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v < 0 },
 		expectTrue:  nil,
 		expectFalse: []int{1, 2, 3},
+		trueCapMin:  0,
+		trueCapMax:  20,
+		falseCapMin: 3,
+		falseCapMax: 20,
+	},
+	{
+		name:        "first_slice_filtered_fully",
+		slices:      [][]int{make([]int, 3), {1, 2}, {3, 4}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2, 3, 4},
+		expectFalse: []int{0, 0, 0},
+		trueCapMin:  4,
+		trueCapMax:  4,
+		falseCapMin: 3,
+		falseCapMax: 4,
 	},
 	{
 		name:        "first_slice_insufficient_capacity",
-		slices:      [][]int{make([]int, 0, 2), {1, 2}, {3, 4}},
+		slices:      [][]int{{0, 1}, {2}, {3, 4}},
 		testFunc:    func(v int) bool { return v > 0 },
 		expectTrue:  []int{1, 2, 3, 4},
-		expectFalse: nil,
+		expectFalse: []int{0},
+		trueCapMin:  4,
+		trueCapMax:  4,
+		falseCapMin: 1,
+		falseCapMax: 4,
 	},
 	{
-		name:        "first_slice_provides_capacity_after_filtered",
-		slices:      [][]int{{1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+		name:        "first_slice_provides_capacity",
+		slices:      [][]int{{6, 1, 6, 1, 2, 3, 4, 5}, {6, 7}, {8, 9, 10}},
 		testFunc:    func(v int) bool { return v > 5 },
-		expectTrue:  []int{6, 7, 8, 9, 10},
+		expectTrue:  []int{6, 6, 6, 7, 8, 9, 10},
+		expectFalse: []int{1, 1, 2, 3, 4, 5},
+		trueCapMin:  7,
+		trueCapMax:  8,
+		falseCapMin: 6,
+		falseCapMax: 8,
+	},
+	{
+		name:        "first_slice_view_prevents_concat_inplace",
+		slices:      [][]int{{2, 4, 6}, {1, 3, 8}},
+		testFunc:    func(v int) bool { return v%2 == 0 },
+		expectTrue:  []int{2, 4, 6, 8},
+		expectFalse: []int{1, 3},
+		trueCapMin:  4,
+		trueCapMax:  4,
+		falseCapMin: 2,
+		falseCapMax: 3,
+	},
+	{
+		name:        "first_slice_allocation_allows_concat_inplace",
+		slices:      [][]int{{1, 2, 4, 3, 6}, {8, 10, 12}},
+		testFunc:    func(v int) bool { return v%2 == 0 },
+		expectTrue:  []int{2, 4, 6, 8, 10, 12},
+		expectFalse: []int{1, 3},
+		trueCapMin:  6,
+		trueCapMax:  6,
+		falseCapMin: 3,
+		falseCapMax: 5,
+	},
+	{
+		name:        "head_slice_replacement_with_capacity_preference",
+		slices:      [][]int{make([]int, 0, 2), make([]int, 0, 8), {1, 2, 3}},
+		testFunc:    func(v int) bool { return v > 1 },
+		expectTrue:  []int{2, 3},
+		expectFalse: []int{1},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 2,
+		falseCapMax: 3,
+	},
+	{
+		name:        "head_slice_not_replaced_when_has_results",
+		slices:      [][]int{{2}, make([]int, 0, 10), {4, 5, 6}},
+		testFunc:    func(v int) bool { return v%2 == 0 },
+		expectTrue:  []int{2, 4, 6},
+		expectFalse: []int{5},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 2,
+		falseCapMax: 3,
+	},
+	{
+		name:        "capacity_tracking_heavy_filtering",
+		slices:      [][]int{{1, 2, 3, 4, 5}, {6}, {7, 8, 9}},
+		testFunc:    func(v int) bool { return v >= 6 },
+		expectTrue:  []int{6, 7, 8, 9},
 		expectFalse: []int{1, 2, 3, 4, 5},
+		trueCapMin:  4,
+		trueCapMax:  5,
+		falseCapMin: 5,
+		falseCapMax: 5,
+	},
+	{
+		name:        "capacity_insufficient_forces_regular_concat",
+		slices:      [][]int{{1}, {2, 3, 4, 5, 6, 7, 8, 9, 10}},
+		testFunc:    func(v int) bool { return v >= 2 },
+		expectTrue:  []int{2, 3, 4, 5, 6, 7, 8, 9, 10},
+		expectFalse: []int{1},
+		trueCapMin:  9,
+		trueCapMax:  9,
+		falseCapMin: 1,
+		falseCapMax: 1,
+	},
+	{
+		name:        "split_first_slice_view_true_prevents_inplace",
+		slices:      [][]int{{2, 4, 6}, {1, 7, 9}},
+		testFunc:    func(v int) bool { return v%2 == 0 },
+		expectTrue:  []int{2, 4, 6},
+		expectFalse: []int{1, 7, 9},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
+	},
+	{
+		name:        "split_first_slice_view_false_prevents_inplace",
+		slices:      [][]int{{1, 3, 5}, {2, 8, 9}},
+		testFunc:    func(v int) bool { return v%2 == 0 },
+		expectTrue:  []int{2, 8},
+		expectFalse: []int{1, 3, 5, 9},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 4,
+		falseCapMax: 4,
+	},
+	{
+		name:        "firstCapacity_boundary_equal_zero",
+		slices:      [][]int{{1, 2, 3, 4, 5}, {6, 7, 8}},
+		testFunc:    func(v int) bool { return v == 7 },
+		expectTrue:  []int{7},
+		expectFalse: []int{1, 2, 3, 4, 5, 6, 8},
+		trueCapMin:  2,
+		trueCapMax:  3,
+		falseCapMin: 7,
+		falseCapMax: 8,
+	},
+	{
+		name:        "firstCapacity_negative_prevents_inplace",
+		slices:      [][]int{{1}, {2, 3, 4, 5, 6}},
+		testFunc:    func(v int) bool { return v >= 2 },
+		expectTrue:  []int{2, 3, 4, 5, 6},
+		expectFalse: []int{1},
+		trueCapMin:  5,
+		trueCapMax:  5,
+		falseCapMin: 1,
+		falseCapMax: 5,
+	},
+	{
+		name:        "last_slice_head_replacement_capacity",
+		slices:      [][]int{{}, {1, 2, 3}, {}},
+		testFunc:    func(v int) bool { return false },
+		expectTrue:  nil,
+		expectFalse: []int{1, 2, 3},
+		trueCapMin:  0,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
+	},
+	{
+		name:        "last_slice_head_replacement_results",
+		slices:      [][]int{{}, {1, 2, 3}, {4, 5, 6}},
+		testFunc:    func(v int) bool { return v >= 4 },
+		expectTrue:  []int{4, 5, 6},
+		expectFalse: []int{1, 2, 3},
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 3,
+		falseCapMax: 3,
+	},
+	{
+		name:        "firstCapacity_tracking_multiple",
+		slices:      [][]int{{1, 2, 3, 4, 5, 6, 7, 8}, {9}, {10}},
+		testFunc:    func(v int) bool { return v >= 7 },
+		expectTrue:  []int{7, 8, 9, 10},
+		expectFalse: []int{1, 2, 3, 4, 5, 6},
+		trueCapMin:  4,
+		trueCapMax:  8,
+		falseCapMin: 7,
+		falseCapMax: 8,
+	},
+	{
+		name:        "currCapacity_vs_firstCapacity",
+		slices:      [][]int{{1, 2, 3}, {4, 5, 6, 7, 8}},
+		testFunc:    func(v int) bool { return v == 4 },
+		expectTrue:  []int{4},
+		expectFalse: []int{1, 2, 3, 5, 6, 7, 8},
+		trueCapMin:  4,
+		trueCapMax:  5,
+		falseCapMin: 7,
+		falseCapMax: 7,
+	},
+	{
+		name:        "head_not_replaced_has_results",
+		slices:      [][]int{{}, {1, 2}, {}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2},
+		expectFalse: nil,
+		trueCapMin:  2,
+		trueCapMax:  2,
+		falseCapMin: 0,
+		falseCapMax: 2,
+	},
+	{
+		name:        "concat_boundary_totalSize_equals_capacity",
+		slices:      [][]int{{1}, {2, 3}},
+		testFunc:    func(v int) bool { return true },
+		expectTrue:  []int{1, 2, 3},
+		expectFalse: nil,
+		trueCapMin:  3,
+		trueCapMax:  3,
+		falseCapMin: 0,
+		falseCapMax: 3,
+	},
+	{
+		name:        "concat_boundary_totalSize_exceeds_capacity",
+		slices:      [][]int{{1}, {2, 3, 4}},
+		testFunc:    func(v int) bool { return true },
+		expectTrue:  []int{1, 2, 3, 4},
+		expectFalse: nil,
+		trueCapMin:  4,
+		trueCapMax:  4,
+		falseCapMin: 0,
+		falseCapMax: 4,
 	},
 }
 
@@ -655,6 +946,8 @@ func TestSliceFilter(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectTrue, trueSlice)
 			}
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
 
 			falseSlice := SliceFilter(func(v int) bool { return !tt.testFunc(v) }, tt.slices...)
 			if len(tt.expectFalse) == 0 {
@@ -662,6 +955,8 @@ func TestSliceFilter(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 
@@ -730,6 +1025,8 @@ func TestSliceFilterInPlace(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectTrue, trueSlice)
 			}
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
 
 			// replace with test case copies
 			for i := range slices {
@@ -742,6 +1039,8 @@ func TestSliceFilterInPlace(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 
@@ -803,7 +1102,6 @@ func TestSliceSplit(t *testing.T) {
 			}
 			assert.Equal(t, tt.expectFalse, falseSlice)
 
-			// Validate capacity
 			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
 			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
 			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
@@ -811,7 +1109,6 @@ func TestSliceSplit(t *testing.T) {
 		})
 	}
 
-	// Multi-slice test cases
 	for i, tt := range sliceMultipleTestCases {
 		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			trueSlice, falseSlice := SliceSplit(tt.testFunc, tt.slices...)
@@ -825,6 +1122,10 @@ func TestSliceSplit(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
 		})
 	}
 
@@ -834,7 +1135,6 @@ func TestSliceSplit(t *testing.T) {
 		assert.Nil(t, falseResult)
 	})
 
-	// Additional tests for specific coverage of new SliceSplit capacity logic
 	t.Run("capacity_preference_when_concat_not_inplace_true", func(t *testing.T) {
 		// Create scenario where views prevent inPlace concat and capacity selection is needed
 		slice1 := make([]int, 0, 5)  // Empty with some capacity
