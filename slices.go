@@ -26,8 +26,10 @@ func SliceFilter[T any](predicate func(val T) bool, slices ...[]T) []T {
 			}
 		}
 		// head not replaced, check if we should append
-		if i == 0 || len(partResult) > 0 {
-			concatInPlace = concatInPlace && !view // if view is used we have to copy in concat
+		if i == 0 {
+			concatInPlace = !view // if first slice uses a view we have to copy in concat
+			results = append(results, partResult)
+		} else if len(partResult) > 0 {
 			results = append(results, partResult)
 		}
 	}
@@ -223,24 +225,28 @@ func SliceSplit[T any](predicate func(val T) bool, slices ...[]T) ([]T, []T) {
 	trueConcatInPlace, falseConcatInPlace := true, true
 	for i, slice := range slices {
 		tSlice, fSlice, tView, fView := singleSliceSplit(predicate, slice)
-		if len(trueResults) == 1 && len(trueResults[0]) == 0 && // check for empty head to replace
+		if i == 0 { // ensure at least one true result
+			trueResults = append(trueResults, tSlice)
+			trueConcatInPlace = !tView // if the first result is a view, we can't concatenate in place
+		} else if len(trueResults) == 1 && len(trueResults[0]) == 0 && // check for empty head to replace
 			(len(tSlice) > 0 || // replace with actual results
 				(!tView && !trueConcatInPlace) || // can be used to upgrade into an in place copy
 				(!trueConcatInPlace && cap(tSlice) > cap(trueResults[0]))) { // won't downgrade and has more capacity
 			trueResults[0] = tSlice
 			trueConcatInPlace = !tView
-		} else if len(tSlice) > 0 || i == 0 /* ensure at least one result */ {
-			trueConcatInPlace = trueConcatInPlace && !tView
+		} else if len(tSlice) > 0 {
 			trueResults = append(trueResults, tSlice)
 		}
-		if len(falseResults) == 1 && len(falseResults[0]) == 0 && // check for empty head to replace
+		if i == 0 { // ensure at least one false result
+			falseResults = append(falseResults, fSlice)
+			falseConcatInPlace = !fView // if the first result is a view, we can't concatenate in place
+		} else if len(falseResults) == 1 && len(falseResults[0]) == 0 && // check for empty head to replace
 			(len(fSlice) > 0 || // replace with actual results
 				(!fView && !falseConcatInPlace) || // can be used to upgrade into an in place copy
 				(!falseConcatInPlace && cap(fSlice) > cap(falseResults[0]))) { // won't downgrade and has more capacity
 			falseResults[0] = fSlice
 			falseConcatInPlace = !fView
-		} else if len(fSlice) > 0 || i == 0 /* ensure at least one result */ {
-			falseConcatInPlace = falseConcatInPlace && !fView
+		} else if len(fSlice) > 0 {
 			falseResults = append(falseResults, fSlice)
 		}
 	}
