@@ -586,6 +586,34 @@ var sliceMultipleTestCases = []struct {
 		expectTrue:  []int{2, 3},
 		expectFalse: []int{1},
 	},
+	{
+		name:        "empty_capacity_first_higher",
+		slices:      [][]int{make([]int, 0, 20), make([]int, 0, 5), {1, 2, 3}},
+		testFunc:    func(v int) bool { return v < 0 },
+		expectTrue:  nil,
+		expectFalse: []int{1, 2, 3},
+	},
+	{
+		name:        "empty_capacity_second_higher",
+		slices:      [][]int{make([]int, 0, 5), make([]int, 0, 20), {1, 2, 3}},
+		testFunc:    func(v int) bool { return v < 0 },
+		expectTrue:  nil,
+		expectFalse: []int{1, 2, 3},
+	},
+	{
+		name:        "first_slice_insufficient_capacity",
+		slices:      [][]int{make([]int, 0, 2), {1, 2}, {3, 4}},
+		testFunc:    func(v int) bool { return v > 0 },
+		expectTrue:  []int{1, 2, 3, 4},
+		expectFalse: nil,
+	},
+	{
+		name:        "first_slice_provides_capacity_after_filtered",
+		slices:      [][]int{{1, 2, 3, 4, 5}, {6, 7, 8, 9, 10}},
+		testFunc:    func(v int) bool { return v > 5 },
+		expectTrue:  []int{6, 7, 8, 9, 10},
+		expectFalse: []int{1, 2, 3, 4, 5},
+	},
 }
 
 func sliceDup[T any](s []T) []T {
@@ -619,7 +647,6 @@ func TestSliceFilter(t *testing.T) {
 		})
 	}
 
-	// Multi-slice test cases
 	for i, tt := range sliceMultipleTestCases {
 		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			trueSlice := SliceFilter(tt.testFunc, tt.slices...)
@@ -672,14 +699,95 @@ func TestSliceFilterInPlace(t *testing.T) {
 	for i, tt := range sliceTestCases {
 		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
 			// make a copy of the test input to avoid changing it
-			slice := SliceFilterInPlace(tt.testFunc, sliceDup(tt.input))
+			trueSlice := SliceFilterInPlace(tt.testFunc, sliceDup(tt.input))
 			if len(tt.expectTrue) == 0 {
-				assert.Empty(t, slice)
+				assert.Empty(t, trueSlice)
 			} else {
-				assert.Equal(t, tt.expectTrue, slice)
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			// make a copy of the test input to avoid changing it
+			falseSlice := SliceFilterInPlace(func(v int) bool { return !tt.testFunc(v) }, sliceDup(tt.input))
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
 			}
 		})
 	}
+
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			// make a copy of the test input to avoid changing it
+			slices := make([][]int, len(tt.slices))
+			for i := range slices {
+				slices[i] = sliceDup(tt.slices[i])
+			}
+
+			trueSlice := SliceFilterInPlace(tt.testFunc, slices...)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			// replace with test case copies
+			for i := range slices {
+				slices[i] = sliceDup(tt.slices[i])
+			}
+
+			falseSlice := SliceFilterInPlace(func(v int) bool { return !tt.testFunc(v) }, slices...)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+
+	t.Run("slice_pick", func(t *testing.T) {
+		slice1 := []int{1, 2, 3, 4, 5} // Will be filtered heavily, retained for capacity
+		slice2 := []int{6, 7, 8, -8}   // result slice due to only one with results
+
+		// This should hit the firstCapacity > 0 branch due to heavy filtering
+		result := SliceFilterInPlace(func(v int) bool { return v >= 8 }, slice1, slice2)
+		assert.Equal(t, []int{8}, result)
+		assert.Equal(t, 4, cap(result))
+	})
+
+	t.Run("slice_concat_inplace_first", func(t *testing.T) {
+		slice1 := []int{1, 2, 3, 4, 5} // Will be filtered heavily
+		slice2 := make([]int, 0, 15)   // Empty but high capacity
+		slice3 := []int{6, 7, 8, -8}   // first non-empty result, but co
+		slice4 := []int{10}            // second slice with results
+
+		// This should hit the firstCapacity > 0 branch due to heavy filtering
+		result := SliceFilterInPlace(func(v int) bool { return v >= 8 }, slice1, slice2, slice3, slice4)
+		assert.Equal(t, []int{8, 10}, result)
+		assert.Equal(t, 5, cap(result))
+	})
+
+	t.Run("capacity_replacement_logic", func(t *testing.T) {
+		// Test the specific "firstCapacity < currCapacity" branch
+		slice1 := []int{1, 2}          // small capacity after filtering (all elements filtered out)
+		slice2 := []int{3, 4, 5, 6, 7} // larger remaining capacity after filtering (all elements filtered out)
+
+		result := SliceFilterInPlace(func(v int) bool { return false }, slice1, slice2)
+		// Should prefer slice2's capacity since it has more remaining space after filtering
+		assert.Empty(t, result)
+		assert.Equal(t, 5, cap(result)) // Should use slice2's capacity
+	})
+
+	t.Run("capacity_replacement_with_results", func(t *testing.T) {
+		// Test capacity replacement when one slice has results
+		slice1 := make([]int, 0, 3)    // empty with small capacity
+		slice2 := []int{1, 2, 3, 4, 5} // will have remaining capacity after filtering
+
+		result := SliceFilterInPlace(func(v int) bool { return v > 3 }, slice1, slice2)
+		assert.Equal(t, []int{4, 5}, result)
+		// Should use slice2's capacity since it provided results and remaining capacity
+		assert.Equal(t, 5, cap(result))
+	})
 }
 
 func TestSliceSplit(t *testing.T) {
@@ -724,6 +832,93 @@ func TestSliceSplit(t *testing.T) {
 		trueResult, falseResult := SliceSplit(func(v int) bool { return v > 0 })
 		assert.Nil(t, trueResult)
 		assert.Nil(t, falseResult)
+	})
+
+	// Additional tests for specific coverage of new SliceSplit capacity logic
+	t.Run("capacity_preference_when_concat_not_inplace_true", func(t *testing.T) {
+		// Create scenario where views prevent inPlace concat and capacity selection is needed
+		slice1 := make([]int, 0, 5)  // Empty with some capacity
+		slice2 := make([]int, 0, 15) // Empty with higher capacity
+		slice3 := []int{1, 2, 3, 4, 5}
+
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v > 10 }, slice1, slice2, slice3)
+		assert.Empty(t, trueResult) // Should prefer higher capacity empty result
+		assert.Equal(t, []int{1, 2, 3, 4, 5}, falseResult)
+	})
+
+	t.Run("capacity_preference_when_concat_not_inplace_false", func(t *testing.T) {
+		// Create scenario where views prevent inPlace concat for false results
+		slice1 := make([]int, 0, 5)  // Empty with some capacity
+		slice2 := make([]int, 0, 15) // Empty with higher capacity
+		slice3 := []int{11, 12, 13, 14, 15}
+
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v > 10 }, slice1, slice2, slice3)
+		assert.Equal(t, []int{11, 12, 13, 14, 15}, trueResult)
+		assert.Empty(t, falseResult) // Should prefer higher capacity empty result
+	})
+
+	t.Run("view_detection_prevents_inplace_concat", func(t *testing.T) {
+		// Test case where singleSliceSplit returns views, preventing inPlace concat
+		slice1 := []int{1, 2, 3, 4, 5} // Will return views
+		slice2 := make([]int, 0, 20)   // High capacity empty slice
+		slice3 := []int{6, 7, 8}       // More elements
+
+		// This should exercise the view detection logic
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v%2 == 1 }, slice1, slice2, slice3)
+		assert.Equal(t, []int{1, 3, 5, 7}, trueResult)
+		assert.Equal(t, []int{2, 4, 6, 8}, falseResult)
+	})
+
+	t.Run("capacity_selection_with_view_preventing_inplace", func(t *testing.T) {
+		// Force the specific branch: !trueConcatInPlace && len(trueResults[0]) == 0 && cap(trueResults[0]) < cap(tSlice)
+		slice1 := make([]int, 0, 3)  // Empty with low capacity
+		slice2 := []int{1, 3, 5}     // All true for predicate - will be a view, preventing inPlace
+		slice3 := make([]int, 0, 15) // Empty with higher capacity - should be selected
+
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v%2 == 1 }, slice1, slice2, slice3)
+		assert.Equal(t, []int{1, 3, 5}, trueResult)
+		assert.Empty(t, falseResult)
+		// The empty falseResult should use slice3's capacity due to the capacity preference logic
+	})
+
+	t.Run("mixed_view_nonview_capacity_selection", func(t *testing.T) {
+		// Test the exact logic: first slice empty (non-view), second slice returns view, third slice has higher capacity
+		slice1 := make([]int, 0, 2)    // Empty result with capacity 2
+		slice2 := []int{1, 2, 3, 4, 5} // Mixed results - returns views, setting trueConcatInPlace=false
+		slice3 := make([]int, 0, 20)   // Empty with much higher capacity
+
+		// This should trigger both capacity selection branches due to view detection
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v > 3 }, slice1, slice2, slice3)
+		assert.Equal(t, []int{4, 5}, trueResult)
+		assert.Equal(t, []int{1, 2, 3}, falseResult)
+	})
+
+	t.Run("asymmetric_results_first_slice_mixed", func(t *testing.T) {
+		slice1 := []int{1, 2}    // produces both true and false results
+		slice2 := []int{3, 3, 3} // produces only false results
+
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v%2 == 0 }, slice1, slice2)
+		assert.Equal(t, []int{2}, trueResult)
+		assert.Equal(t, []int{1, 3, 3, 3}, falseResult)
+
+		// trueResult should be a single allocated result
+		assert.Len(t, trueResult, cap(trueResult))
+		// falseResult should be concatenated from multiple slices
+		assert.Len(t, falseResult, cap(falseResult))
+	})
+
+	t.Run("asymmetric_results_second_slice_mixed", func(t *testing.T) {
+		slice1 := []int{4, 4, 4} // produces only true results
+		slice2 := []int{1, 2}    // produces both true and false results
+
+		trueResult, falseResult := SliceSplit(func(v int) bool { return v%2 == 0 }, slice1, slice2)
+		assert.Equal(t, []int{4, 4, 4, 2}, trueResult)
+		assert.Equal(t, []int{1}, falseResult)
+
+		// trueResult should be concatenated (first slice is view + second slice allocated)
+		assert.Len(t, trueResult, cap(trueResult))
+		// falseResult should be a single allocated result
+		assert.Len(t, falseResult, cap(falseResult))
 	})
 }
 
@@ -2229,14 +2424,14 @@ func TestSliceConcat(t *testing.T) {
 	t.Parallel()
 
 	t.Run("empty input", func(t *testing.T) {
-		result := sliceConcat([][]int{})
+		result := sliceConcat([][]int{}, false)
 		assert.Equal(t, []int{}, result)
 	})
 
-	t.Run("single slice - no copy optimization", func(t *testing.T) {
+	t.Run("single slice", func(t *testing.T) {
 		original := []int{1, 2, 3}
 		input := [][]int{original}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		// Should return same slice (no copy)
 		assert.Same(t, &original[0], &result[0])
@@ -2246,7 +2441,7 @@ func TestSliceConcat(t *testing.T) {
 	t.Run("single empty slice", func(t *testing.T) {
 		original := []int{}
 		input := [][]int{original}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		// Should return same slice reference
 		assert.Equal(t, []int{}, result)
@@ -2254,7 +2449,7 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("multiple slices", func(t *testing.T) {
 		input := [][]int{{1, 2}, {3, 4}, {5, 6}}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		expected := []int{1, 2, 3, 4, 5, 6}
 		assert.Equal(t, expected, result)
@@ -2265,7 +2460,7 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("multiple slices with empty", func(t *testing.T) {
 		input := [][]int{{1, 2}, {}, {3, 4}}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		expected := []int{1, 2, 3, 4}
 		assert.Equal(t, expected, result)
@@ -2273,7 +2468,7 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("multiple empty slices", func(t *testing.T) {
 		input := [][]int{{}, {}, {}}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		expected := []int{}
 		assert.Equal(t, expected, result)
@@ -2281,7 +2476,7 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("single slice with nil elements", func(t *testing.T) {
 		input := [][]int{nil}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		// Should return the nil slice directly
 		assert.Nil(t, result)
@@ -2289,9 +2484,140 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("multiple slices with nil elements", func(t *testing.T) {
 		input := [][]int{{1, 2}, nil, {3, 4}}
-		result := sliceConcat(input)
+		result := sliceConcat(input, false)
 
 		expected := []int{1, 2, 3, 4}
 		assert.Equal(t, expected, result)
+	})
+
+	t.Run("in_place_true_sufficient_capacity", func(t *testing.T) {
+		// First slice has enough capacity for all elements
+		first := make([]int, 2, 10)
+		first[0], first[1] = 1, 2
+		input := [][]int{first, {3, 4}, {5}}
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3, 4, 5}
+		assert.Equal(t, expected, result)
+
+		// Should reuse first slice's underlying array
+		assert.Same(t, &first[0], &result[0])
+		assert.GreaterOrEqual(t, cap(result), 10) // Preserves original capacity
+	})
+
+	t.Run("in_place_true_insufficient_capacity", func(t *testing.T) {
+		// First slice doesn't have enough capacity - should allocate new
+		first := make([]int, 2, 3)
+		first[0], first[1] = 1, 2
+		input := [][]int{first, {3, 4}, {5}}
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3, 4, 5}
+		assert.Equal(t, expected, result)
+
+		// Should NOT reuse first slice's array due to insufficient capacity
+		assert.NotSame(t, &first[0], &result[0])
+	})
+
+	t.Run("in_place_false_forces_allocation", func(t *testing.T) {
+		// Even with sufficient capacity, inPlace=false should allocate
+		first := make([]int, 2, 10)
+		first[0], first[1] = 1, 2
+		input := [][]int{first, {3, 4}}
+		result := sliceConcat(input, false)
+
+		expected := []int{1, 2, 3, 4}
+		assert.Equal(t, expected, result)
+
+		// Should NOT reuse first slice's array due to inPlace=false
+		assert.NotSame(t, &first[0], &result[0])
+	})
+
+	t.Run("in_place_with_empty_slices", func(t *testing.T) {
+		first := make([]int, 1, 5)
+		first[0] = 1
+		input := [][]int{first, {}, {2, 3}, {}}
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3}
+		assert.Equal(t, expected, result)
+
+		// Should reuse first slice's underlying array
+		assert.Same(t, &first[0], &result[0])
+	})
+
+	t.Run("in_place_exact_capacity_fit", func(t *testing.T) {
+		// Total size exactly matches first slice capacity
+		first := make([]int, 1, 4)
+		first[0] = 1
+		input := [][]int{first, {2, 3, 4}}
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3, 4}
+		assert.Equal(t, expected, result)
+
+		// Should reuse first slice's underlying array
+		assert.Same(t, &first[0], &result[0])
+		assert.Equal(t, 4, cap(result)) // Exact capacity
+	})
+
+	t.Run("two_slices_both_empty_first_larger_capacity", func(t *testing.T) {
+		first := make([]int, 0, 10) // Empty with larger capacity
+		second := make([]int, 0, 5) // Empty with smaller capacity
+		input := [][]int{first, second}
+		result := sliceConcat(input, false)
+
+		assert.Equal(t, []int{}, result)
+		// Should return first slice since second doesn't have larger capacity
+		assert.Equal(t, 10, cap(result))
+	})
+
+	t.Run("two_slices_both_empty_second_larger_capacity", func(t *testing.T) {
+		first := make([]int, 0, 5)   // Empty with smaller capacity
+		second := make([]int, 0, 10) // Empty with larger capacity
+		input := [][]int{first, second}
+		result := sliceConcat(input, false)
+
+		assert.Equal(t, []int{}, result)
+		// Should return second slice due to larger capacity
+		assert.Equal(t, 10, cap(result))
+	})
+
+	t.Run("two_slices_first_empty_second_has_values", func(t *testing.T) {
+		first := make([]int, 0, 3) // Empty
+		second := []int{1, 2, 3}   // Has values
+		input := [][]int{first, second}
+		result := sliceConcat(input, false)
+
+		expected := []int{1, 2, 3}
+		assert.Equal(t, expected, result)
+		// Should return second slice since it has values
+		assert.Same(t, &second[0], &result[0])
+	})
+
+	t.Run("in_place_boundary_condition", func(t *testing.T) {
+		// Test exact boundary condition where totalSize == cap(slices[0])
+		first := make([]int, 1, 3) // exactly enough capacity
+		first[0] = 1
+		input := [][]int{first, {2, 3}} // total size = 3
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3}
+		assert.Equal(t, expected, result)
+		assert.Same(t, &first[0], &result[0]) // should reuse
+		assert.Equal(t, 3, cap(result))       // should preserve exact capacity
+	})
+
+	t.Run("in_place_boundary_condition_insufficient", func(t *testing.T) {
+		// Test boundary condition where totalSize > cap(slices[0]) by 1
+		first := make([]int, 1, 3) // one less than needed capacity
+		first[0] = 1
+		input := [][]int{first, {2, 3, 4}} // total size = 4 > capacity 3
+		result := sliceConcat(input, true)
+
+		expected := []int{1, 2, 3, 4}
+		assert.Equal(t, expected, result)
+		assert.NotSame(t, &first[0], &result[0]) // should allocate new
+		assert.GreaterOrEqual(t, cap(result), 4) // should have sufficient capacity
 	})
 }

@@ -63,8 +63,8 @@ evens := bulk.SliceFilter(func(n int) bool { return n%2 == 0 }, numbers)
 // Original slice unchanged: [1, 2, 3, 4, 5, 6]
 ```
 
-##### `SliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T`
-**Zero-allocation** filtering by reusing input slice memory.
+##### `SliceFilterInPlace[T any](predicate func(v T) bool, slices ...[]T) []T`
+**Zero-allocation** filtering by reusing input slice memory (zero allocation only guaranteed with a single slice, but will always have less allocations than SliceFilter).
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!

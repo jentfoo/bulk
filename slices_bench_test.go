@@ -443,7 +443,7 @@ func BenchmarkSliceConcat(b *testing.B) {
 		input := [][]int{sliceLargeInput}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = sliceConcat(input)
+			_ = sliceConcat(input, false)
 		}
 	})
 
@@ -455,7 +455,7 @@ func BenchmarkSliceConcat(b *testing.B) {
 		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = sliceConcat(input)
+			_ = sliceConcat(input, false)
 		}
 	})
 
@@ -466,7 +466,7 @@ func BenchmarkSliceConcat(b *testing.B) {
 		}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = sliceConcat(input)
+			_ = sliceConcat(input, false)
 		}
 	})
 
@@ -474,7 +474,7 @@ func BenchmarkSliceConcat(b *testing.B) {
 		input := [][]int{{}, {}, {}}
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = sliceConcat(input)
+			_ = sliceConcat(input, false)
 		}
 	})
 }

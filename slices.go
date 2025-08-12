@@ -7,23 +7,34 @@ func SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T {
 	case 0:
 		return nil
 	case 1:
-		return singleSliceFilter(predicate, slices[0])
+		result, _ := singleSliceFilter(predicate, slices[0])
+		return result
 	}
 
 	results := make([][]T, 0, len(slices))
+	concatInPlace := true
 	for i, slice := range slices {
-		partResult := singleSliceFilter(predicate, slice)
-		if len(partResult) > 0 || i == 0 /* ensure at least one result, even if empty */ {
-			if len(results) == 1 && len(results[0]) == 0 {
-				results = results[:0] // remove first empty result now that we have a non-empty result
+		partResult, view := singleSliceFilter(predicate, slice)
+		if len(results) == 1 && len(results[0]) == 0 {
+			// Our head slice is empty, check if we should prefer this slice instead
+			if len(partResult) > 0 ||
+				// if no results this will be a view, but maybe we can retain a larger view for the user
+				cap(partResult) > cap(results[0]) {
+				results[0] = partResult
+				concatInPlace = !view
+				continue
 			}
+		}
+		// head not replaced, check if we should append
+		if i == 0 || len(partResult) > 0 {
+			concatInPlace = concatInPlace && !view // if view is used we have to copy in concat
 			results = append(results, partResult)
 		}
 	}
-	return sliceConcat(results)
+	return sliceConcat(results, concatInPlace)
 }
 
-func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
+func singleSliceFilter[T any](predicate func(v T) bool, slice []T) ([]T, bool) {
 	for falseIndex, v := range slice {
 		if predicate(v) {
 			continue // continue till first false is found
@@ -42,7 +53,7 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
 				}
 			}
 			if firstTrueIndex == -1 {
-				return slice[:0] // No true elements found
+				return slice[:0], true // No true elements found
 			}
 
 			// Check if all remaining elements are consecutive and true
@@ -58,7 +69,7 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
 				break
 			}
 			if nonConsecutiveStart < 0 {
-				return slice[firstTrueIndex:] // All elements from firstTrueIndex to end are true
+				return slice[firstTrueIndex:], true // All elements from firstTrueIndex to end are true
 			}
 
 			// if any more trues, we have to allocate and append, otherwise return a view
@@ -71,11 +82,11 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
 					result = append(result, slice[j])
 
 					// Continue appending remaining true elements
-					return SliceFilterInto(result, predicate, slice[j+1:])
+					return SliceFilterInto(result, predicate, slice[j+1:]), false
 				}
 			}
 			// No more true elements found, return consecutive view
-			return slice[firstTrueIndex : consecutiveEnd+1]
+			return slice[firstTrueIndex : consecutiveEnd+1], true
 		} else { // Started true, now first false found
 			// Find first true element after falseIndex
 			secondTrueIndex := -1
@@ -86,30 +97,49 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) []T {
 				}
 			}
 			if secondTrueIndex < 0 {
-				return slice[:falseIndex] // No true elements in suffix, return prefix only
+				return slice[:falseIndex], true // No true elements in suffix, return prefix only
 			}
 
 			// true+ -> false+ -> true - We must allocate at this point
 			result := make([]T, 0, falseIndex+capGuess(len(slice)-secondTrueIndex))
 			result = append(result, slice[:falseIndex]...)
 			result = append(result, slice[secondTrueIndex])
-			return SliceFilterInto(result, predicate, slice[secondTrueIndex+1:])
+			return SliceFilterInto(result, predicate, slice[secondTrueIndex+1:]), false
 		}
 	}
-	return slice // all records tested to true
+	return slice, true // all records tested to true
 }
 
 // sliceConcat is similar to slices.Concat (which is why API is not elevated),
 // but differs in if provided a single slice it's returned without a copy.
-func sliceConcat[T any](slices [][]T) []T {
-	if len(slices) == 1 {
+func sliceConcat[T any](slices [][]T, inPlace bool) []T {
+	switch len(slices) {
+	case 0:
+		return make([]T, 0)
+	case 1:
 		return slices[0]
+	case 2:
+		if len(slices[0]) == 0 { // empty first slice, easy result choice
+			if len(slices[1]) > 0 || cap(slices[1]) > cap(slices[0]) {
+				return slices[1]
+			}
+			return slices[0] // both empty, 0 is largest capacity
+		}
 	}
-	result := make([]T, 0, sliceTotalSize(slices))
-	for _, slice := range slices {
-		result = append(result, slice...)
+
+	if totalSize := sliceTotalSize(slices); inPlace && totalSize <= cap(slices[0]) {
+		result := slices[0]
+		for i := 1; i < len(slices); i++ { // skip the first slice (set directly)
+			result = append(result, slices[i]...)
+		}
+		return result
+	} else { // allocate and copy
+		result := make([]T, 0, totalSize)
+		for _, slice := range slices {
+			result = append(result, slice...)
+		}
+		return result
 	}
-	return result
 }
 
 // SliceFilterInto appends elements that pass the predicate function from the input slices into dest.
@@ -126,7 +156,46 @@ func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T
 
 // SliceFilterInPlace returns elements that pass the predicate function.
 // Input slice is modified and must be discarded after calling.
-func SliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T {
+func SliceFilterInPlace[T any](predicate func(v T) bool, slices ...[]T) []T {
+	switch len(slices) {
+	case 0:
+		return nil
+	case 1:
+		return singleSliceFilterInPlace(predicate, slices[0])
+	}
+
+	results := make([][]T, 0, len(slices))
+	firstCapacity := len(slices[0]) // initialize with the raw initial length to consider as capacity (NOT full cap range)
+	for i, slice := range slices {
+		partResult := singleSliceFilterInPlace(predicate, slice)
+		if len(results) == 1 && len(results[0]) == 0 {
+			// Our head slice is empty, check if we should prefer this slice instead
+			if i == len(slices)-1 { // last record, pick the ideal result and break
+				if len(partResult) > 0 || cap(partResult) > cap(results[0]) {
+					results[0] = partResult
+				}
+				break
+			}
+			// if the current result offers more capacity retain it instead
+			// otherwise just fall through and both will be retained
+			// if the current is the only added slice sliceConcat will optimize away the empty head slice
+			// if more slices are added (3+ total), then sliceConcat may use this slice to avoid allocations
+			currCapacity := len(slice) - len(partResult)
+			if firstCapacity < currCapacity {
+				firstCapacity = currCapacity
+				results[0] = partResult
+				continue
+			}
+		} // if not continue above, fall to check below
+		if i == 0 || len(partResult) > 0 {
+			firstCapacity -= len(partResult)
+			results = append(results, partResult)
+		}
+	}
+	return sliceConcat(results, firstCapacity >= 0)
+}
+
+func singleSliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T {
 	var n int
 	for i := range slice {
 		if predicate(slice[i]) {
@@ -144,36 +213,45 @@ func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
 	case 0:
 		return nil, nil
 	case 1:
-		return singleSliceSplit(predicate, slices[0])
+		tSlice, fSlice, _, _ := singleSliceSplit(predicate, slices[0])
+		return tSlice, fSlice
 	}
 
-	trueResults := make([][]T, 0, len(slices))
-	falseResults := make([][]T, 0, len(slices))
+	trueResults, falseResults := make([][]T, 0, len(slices)), make([][]T, 0, len(slices))
+	trueConcatInPlace, falseConcatInPlace := true, true
 	for i, slice := range slices {
-		predTrue, predFalse := singleSliceSplit(predicate, slice)
-		if len(predTrue) > 0 || i == 0 /* ensure at least one result */ {
-			if len(trueResults) == 1 && len(trueResults[0]) == 0 {
-				trueResults = trueResults[:0] // remove the previous empty slice
-			}
-			trueResults = append(trueResults, predTrue)
+		tSlice, fSlice, tView, fView := singleSliceSplit(predicate, slice)
+		if len(trueResults) == 1 && len(trueResults[0]) == 0 && // check for empty head to replace
+			(len(tSlice) > 0 || // replace with actual results
+				(!tView && !trueConcatInPlace) || // can be used to upgrade into an in place copy
+				(!trueConcatInPlace && cap(tSlice) > cap(trueResults[0]))) { // wont downgrade and has more capacity
+			trueResults[0] = tSlice
+			trueConcatInPlace = !tView
+		} else if len(tSlice) > 0 || i == 0 /* ensure at least one result */ {
+			trueConcatInPlace = trueConcatInPlace && !tView
+			trueResults = append(trueResults, tSlice)
 		}
-		if len(predFalse) > 0 || i == 0 {
-			if len(falseResults) == 1 && len(falseResults[0]) == 0 {
-				falseResults = falseResults[:0] // remove the previous empty slice
-			}
-			falseResults = append(falseResults, predFalse)
+		if len(falseResults) == 1 && len(falseResults[0]) == 0 && // check for empty head to replace
+			(len(fSlice) > 0 || // replace with actual results
+				(!fView && !falseConcatInPlace) || // can be used to upgrade into an in place copy
+				(!falseConcatInPlace && cap(fSlice) > cap(falseResults[0]))) { // wont downgrade and has more capacity
+			falseResults[0] = fSlice
+			falseConcatInPlace = !fView
+		} else if len(fSlice) > 0 || i == 0 /* ensure at least one result */ {
+			falseConcatInPlace = falseConcatInPlace && !fView
+			falseResults = append(falseResults, fSlice)
 		}
 	}
-	trueResult := sliceConcat(trueResults)
-	falseResult := sliceConcat(falseResults)
+	trueResult := sliceConcat(trueResults, trueConcatInPlace)
+	falseResult := sliceConcat(falseResults, falseConcatInPlace)
 	return trueResult, falseResult
 }
 
 // SliceSplit partitions elements based on the predicate function.
 // Returns (trueElements, falseElements).
-func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
+func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T, bool, bool) {
 	if len(slice) == 0 {
-		return slice, nil
+		return slice, nil, true, false
 	}
 
 	var splitIndex int
@@ -187,9 +265,9 @@ func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 	// If all are the same, return early
 	if splitIndex == len(slice) {
 		if first {
-			return slice, nil
+			return slice, nil, true, false
 		} else {
-			return nil, slice
+			return nil, slice, false, true
 		}
 	}
 
@@ -212,7 +290,7 @@ func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 		}
 	}
 
-	return trueList, falseList
+	return trueList, falseList, false, false
 }
 
 // SliceSplitInPlace partitions elements based on the predicate function.
