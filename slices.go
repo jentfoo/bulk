@@ -2,7 +2,7 @@ package bulk
 
 // SliceFilter returns elements that pass the predicate function.
 // May return the original slice if all elements pass (no allocation).
-func SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T {
+func SliceFilter[T any](predicate func(val T) bool, slices ...[]T) []T {
 	switch len(slices) {
 	case 0:
 		return nil
@@ -36,32 +36,32 @@ func SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T {
 
 // singleSliceFilter filters a single slice based on the predicate function.
 // Returns (filteredElements, isView) where isView indicates if the result is a view of the original slice.
-func singleSliceFilter[T any](predicate func(v T) bool, slice []T) ([]T, bool) {
-	for falseIndex, v := range slice {
-		if predicate(v) {
+func singleSliceFilter[T any](predicate func(val T) bool, slice []T) ([]T, bool) {
+	for falseIdx, val := range slice {
+		if predicate(val) {
 			continue // continue till first false is found
 		}
 
 		// build and return result
-		if falseIndex == 0 {
+		if falseIdx == 0 {
 			// Track state transitions for view optimization
-			firstTrueIndex := -1
+			firstTrueIdx := -1
 
 			// Find first true element
-			for i := falseIndex + 1; i < len(slice); i++ {
+			for i := falseIdx + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
-					firstTrueIndex = i
+					firstTrueIdx = i
 					break
 				}
 			}
-			if firstTrueIndex == -1 {
+			if firstTrueIdx == -1 {
 				return slice[:0], true // No true elements found
 			}
 
 			// Check if all remaining elements are consecutive and true
-			consecutiveEnd := firstTrueIndex
+			consecutiveEnd := firstTrueIdx
 			nonConsecutiveStart := -1
-			for i := firstTrueIndex + 1; i < len(slice); i++ {
+			for i := firstTrueIdx + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
 					consecutiveEnd = i
 					continue
@@ -71,16 +71,16 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) ([]T, bool) {
 				break
 			}
 			if nonConsecutiveStart < 0 {
-				return slice[firstTrueIndex:], true // All elements from firstTrueIndex to end are true
+				return slice[firstTrueIdx:], true // All elements from firstTrueIdx to end are true
 			}
 
 			// if any more trues, we have to allocate and append, otherwise return a view
 			for j := nonConsecutiveStart + 1; j < len(slice); j++ {
 				if predicate(slice[j]) {
 					// Found another true after false, not consecutive - need to allocate
-					// worst case size: (consecutiveEnd-firstTrueIndex+1) + 1 + (len(slice) - j - 1) (+1 -1 simplified out)
-					result := make([]T, 0, (consecutiveEnd-firstTrueIndex+1)+capGuess(len(slice)-j))
-					result = append(result, slice[firstTrueIndex:consecutiveEnd+1]...)
+					// worst case size: (consecutiveEnd-firstTrueIdx+1) + 1 + (len(slice) - j - 1) (+1 -1 simplified out)
+					result := make([]T, 0, (consecutiveEnd-firstTrueIdx+1)+capGuess(len(slice)-j))
+					result = append(result, slice[firstTrueIdx:consecutiveEnd+1]...)
 					result = append(result, slice[j])
 
 					// Continue appending remaining true elements
@@ -88,25 +88,25 @@ func singleSliceFilter[T any](predicate func(v T) bool, slice []T) ([]T, bool) {
 				}
 			}
 			// No more true elements found, return consecutive view
-			return slice[firstTrueIndex : consecutiveEnd+1], true
+			return slice[firstTrueIdx : consecutiveEnd+1], true
 		} else { // Started true, now first false found
-			// Find first true element after falseIndex
-			secondTrueIndex := -1
-			for i := falseIndex + 1; i < len(slice); i++ {
+			// Find first true element after falseIdx
+			secondTrueIdx := -1
+			for i := falseIdx + 1; i < len(slice); i++ {
 				if predicate(slice[i]) {
-					secondTrueIndex = i
+					secondTrueIdx = i
 					break
 				}
 			}
-			if secondTrueIndex < 0 {
-				return slice[:falseIndex], true // No true elements in suffix, return prefix only
+			if secondTrueIdx < 0 {
+				return slice[:falseIdx], true // No true elements in suffix, return prefix only
 			}
 
 			// true+ -> false+ -> true - We must allocate at this point
-			result := make([]T, 0, falseIndex+capGuess(len(slice)-secondTrueIndex))
-			result = append(result, slice[:falseIndex]...)
-			result = append(result, slice[secondTrueIndex])
-			return SliceFilterInto(result, predicate, slice[secondTrueIndex+1:]), false
+			result := make([]T, 0, falseIdx+capGuess(len(slice)-secondTrueIdx))
+			result = append(result, slice[:falseIdx]...)
+			result = append(result, slice[secondTrueIdx])
+			return SliceFilterInto(result, predicate, slice[secondTrueIdx+1:]), false
 		}
 	}
 	return slice, true // all records tested to true
@@ -147,9 +147,9 @@ func sliceConcat[T any](slices [][]T, inPlace bool) []T {
 // SliceFilterInto appends elements that pass the predicate function from the input slices into dest.
 func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T {
 	for _, input := range inputs {
-		for _, v := range input {
-			if predicate(v) {
-				dest = append(dest, v)
+		for _, val := range input {
+			if predicate(val) {
+				dest = append(dest, val)
 			}
 		}
 	}
@@ -158,7 +158,7 @@ func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T
 
 // SliceFilterInPlace returns elements that pass the predicate function.
 // Input slice is modified and must be discarded after calling.
-func SliceFilterInPlace[T any](predicate func(v T) bool, slices ...[]T) []T {
+func SliceFilterInPlace[T any](predicate func(val T) bool, slices ...[]T) []T {
 	switch len(slices) {
 	case 0:
 		return nil
@@ -210,7 +210,7 @@ func singleSliceFilterInPlace[T any](predicate func(v T) bool, slice []T) []T {
 
 // SliceSplit partitions elements based on the predicate function.
 // Returns (trueElements, falseElements).
-func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
+func SliceSplit[T any](predicate func(val T) bool, slices ...[]T) ([]T, []T) {
 	switch len(slices) {
 	case 0:
 		return nil, nil
@@ -226,7 +226,7 @@ func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
 		if len(trueResults) == 1 && len(trueResults[0]) == 0 && // check for empty head to replace
 			(len(tSlice) > 0 || // replace with actual results
 				(!tView && !trueConcatInPlace) || // can be used to upgrade into an in place copy
-				(!trueConcatInPlace && cap(tSlice) > cap(trueResults[0]))) { // wont downgrade and has more capacity
+				(!trueConcatInPlace && cap(tSlice) > cap(trueResults[0]))) { // won't downgrade and has more capacity
 			trueResults[0] = tSlice
 			trueConcatInPlace = !tView
 		} else if len(tSlice) > 0 || i == 0 /* ensure at least one result */ {
@@ -236,7 +236,7 @@ func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
 		if len(falseResults) == 1 && len(falseResults[0]) == 0 && // check for empty head to replace
 			(len(fSlice) > 0 || // replace with actual results
 				(!fView && !falseConcatInPlace) || // can be used to upgrade into an in place copy
-				(!falseConcatInPlace && cap(fSlice) > cap(falseResults[0]))) { // wont downgrade and has more capacity
+				(!falseConcatInPlace && cap(fSlice) > cap(falseResults[0]))) { // won't downgrade and has more capacity
 			falseResults[0] = fSlice
 			falseConcatInPlace = !fView
 		} else if len(fSlice) > 0 || i == 0 /* ensure at least one result */ {
@@ -251,21 +251,21 @@ func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
 
 // singleSliceSplit partitions a single slice based on the predicate function.
 // Returns (trueElements, falseElements, trueIsView, falseIsView).
-func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T, bool, bool) {
+func singleSliceSplit[T any](predicate func(val T) bool, slice []T) ([]T, []T, bool, bool) {
 	if len(slice) == 0 {
 		return slice, nil, true, false
 	}
 
-	var splitIndex int
+	var splitIdx int
 	first := predicate(slice[0])
-	for splitIndex = 1; splitIndex < len(slice); splitIndex++ {
-		if first != predicate(slice[splitIndex]) {
+	for splitIdx = 1; splitIdx < len(slice); splitIdx++ {
+		if first != predicate(slice[splitIdx]) {
 			break
 		}
 	}
 
 	// If all are the same, return early
-	if splitIndex == len(slice) {
+	if splitIdx == len(slice) {
 		if first {
 			return slice, nil, true, false
 		} else {
@@ -274,32 +274,32 @@ func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T, boo
 	}
 
 	// Allocate slices and copy first segment
-	remainingBuff := capGuess(len(slice) - splitIndex)
-	var trueList, falseList []T
+	remainingBuff := capGuess(len(slice) - splitIdx)
+	var tSlice, fSlice []T
 	if first {
-		trueList = append(make([]T, 0, splitIndex+remainingBuff-1), slice[:splitIndex]...)
-		falseList = append(make([]T, 0, remainingBuff), slice[splitIndex])
+		tSlice = append(make([]T, 0, splitIdx+remainingBuff-1), slice[:splitIdx]...)
+		fSlice = append(make([]T, 0, remainingBuff), slice[splitIdx])
 	} else {
-		falseList = append(make([]T, 0, splitIndex+remainingBuff-1), slice[:splitIndex]...)
-		trueList = append(make([]T, 0, remainingBuff), slice[splitIndex])
+		fSlice = append(make([]T, 0, splitIdx+remainingBuff-1), slice[:splitIdx]...)
+		tSlice = append(make([]T, 0, remainingBuff), slice[splitIdx])
 	}
 	// Finish iterating appending remaining elements
-	for i := splitIndex + 1; i < len(slice); i++ {
+	for i := splitIdx + 1; i < len(slice); i++ {
 		if predicate(slice[i]) {
-			trueList = append(trueList, slice[i])
+			tSlice = append(tSlice, slice[i])
 		} else {
-			falseList = append(falseList, slice[i])
+			fSlice = append(fSlice, slice[i])
 		}
 	}
 
-	return trueList, falseList, false, false
+	return tSlice, fSlice, false, false
 }
 
 // SliceSplitInPlace partitions elements based on the predicate function.
 // Input slice is modified and must be discarded after calling. Resulting slices will remain in the original order.
 // If order is not important use SliceSplitInPlaceUnstable for an even faster implementation.
 // Returns (trueElements, falseElements).
-func SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
+func SliceSplitInPlace[T any](predicate func(val T) bool, slice []T) ([]T, []T) {
 	n := len(slice)
 	if n == 0 {
 		return slice, nil
@@ -312,15 +312,15 @@ func SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 
 		var falseBuf []T // stays nil if we never see a false
 		for i := 1; i < n; i++ {
-			v := slice[i]
-			isTrue := predicate(v) // one evaluation per element
+			val := slice[i]
+			isTrue := predicate(val) // one evaluation per element
 			if isTrue {
-				trueList = append(trueList, v) // writes to earlier indices only; safe
+				trueList = append(trueList, val) // writes to earlier indices only; safe
 			} else {
 				if falseBuf == nil { // Allocate when we discover the split
 					falseBuf = make([]T, 0, capGuess(n-i))
 				}
-				falseBuf = append(falseBuf, v)
+				falseBuf = append(falseBuf, val)
 			}
 		}
 		return trueList, falseBuf
@@ -332,15 +332,15 @@ func SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 
 	var trueBuf []T // stays nil if we never see a true
 	for i := 1; i < n; i++ {
-		v := slice[i]
-		isTrue := predicate(v) // one evaluation per element
+		val := slice[i]
+		isTrue := predicate(val) // one evaluation per element
 		if isTrue {
 			if trueBuf == nil {
 				trueBuf = make([]T, 0, capGuess(n-i))
 			}
-			trueBuf = append(trueBuf, v)
+			trueBuf = append(trueBuf, val)
 		} else {
-			falseList = append(falseList, v) // safe as above
+			falseList = append(falseList, val) // safe as above
 		}
 	}
 	return trueBuf, falseList
@@ -350,7 +350,7 @@ func SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
 // Input slice is modified and must be discarded after calling.
 // Resulting slices order may change from the original input.
 // Returns (trueElements, falseElements).
-func SliceSplitInPlaceUnstable[T any](predicate func(v T) bool, slice []T) ([]T, []T) {
+func SliceSplitInPlaceUnstable[T any](predicate func(val T) bool, slice []T) ([]T, []T) {
 	if len(slice) == 0 {
 		return slice, nil
 	}
@@ -385,14 +385,14 @@ func SliceSplitInPlaceUnstable[T any](predicate func(v T) bool, slice []T) ([]T,
 func SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R {
 	result := make([]R, 0, sliceTotalSize(inputs))
 	for _, input := range inputs {
-		for _, v := range input {
-			result = append(result, conversion(v))
+		for _, val := range input {
+			result = append(result, conversion(val))
 		}
 	}
 	return result
 }
 
-// SliceToSet accepts slices of a comparable type and returns a Map with the entries as the key.
+// SliceToSet accepts slices of a comparable type and returns a Map with the entries as the keys.
 // This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
 func SliceToSet[T comparable](slices ...[]T) map[T]struct{} {
 	result := make(map[T]struct{}, sliceTotalSize(slices))
@@ -514,18 +514,18 @@ func SliceIntersect[T comparable](a, b []T) []T {
 	bLookup := SliceToSet(b)
 	var result []T
 	var seen map[T]struct{}
-	for aIdx, v := range a {
-		if _, exists := bLookup[v]; exists {
-			if _, duplicate := seen[v]; !duplicate {
-				if result == nil { // allocate based of potential remaining
+	for aIdx, val := range a {
+		if _, exists := bLookup[val]; exists {
+			if _, duplicate := seen[val]; !duplicate {
+				if result == nil { // allocate based on potential remaining
 					if aMax := len(a) - aIdx; aMax < maxCount {
 						maxCount = aMax // conditional because b may still have been the min
 					}
 					seen = make(map[T]struct{}, maxCount)
 					result = make([]T, 0, capGuess(maxCount))
 				}
-				seen[v] = struct{}{}
-				result = append(result, v)
+				seen[val] = struct{}{}
+				result = append(result, val)
 			}
 		}
 	}
@@ -542,15 +542,15 @@ func SliceDifference[T comparable](a, b []T) []T {
 	exclude := SliceToSet(b)
 	var result []T
 	var seen map[T]struct{}
-	for aIdx, v := range a {
-		if _, exists := exclude[v]; !exists {
-			if _, duplicate := seen[v]; !duplicate {
-				if result == nil { // allocate based of potential remaining
+	for aIdx, val := range a {
+		if _, exists := exclude[val]; !exists {
+			if _, duplicate := seen[val]; !duplicate {
+				if result == nil { // allocate based on potential remaining
 					seen = make(map[T]struct{}, len(a)-aIdx)
 					result = make([]T, 0, capGuess(len(a)-aIdx))
 				}
-				seen[v] = struct{}{}
-				result = append(result, v)
+				seen[val] = struct{}{}
+				result = append(result, val)
 			}
 		}
 	}
