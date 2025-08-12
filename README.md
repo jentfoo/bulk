@@ -1,6 +1,6 @@
 # go-analyze/bulk
 
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/go-analyze/charts/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/go-analyze/bulk/blob/master/LICENSE)
 [![Build Status](https://github.com/go-analyze/bulk/actions/workflows/tests-main.yml/badge.svg)](https://github.com/go-analyze/bulk/actions/workflows/tests-main.yml)
 
 **Performance-first collection operations for Go**

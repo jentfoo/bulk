@@ -34,6 +34,8 @@ func SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T {
 	return sliceConcat(results, concatInPlace)
 }
 
+// singleSliceFilter filters a single slice based on the predicate function.
+// Returns (filteredElements, isView) where isView indicates if the result is a view of the original slice.
 func singleSliceFilter[T any](predicate func(v T) bool, slice []T) ([]T, bool) {
 	for falseIndex, v := range slice {
 		if predicate(v) {
@@ -247,8 +249,8 @@ func SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T) {
 	return trueResult, falseResult
 }
 
-// SliceSplit partitions elements based on the predicate function.
-// Returns (trueElements, falseElements).
+// singleSliceSplit partitions a single slice based on the predicate function.
+// Returns (trueElements, falseElements, trueIsView, falseIsView).
 func singleSliceSplit[T any](predicate func(v T) bool, slice []T) ([]T, []T, bool, bool) {
 	if len(slice) == 0 {
 		return slice, nil, true, false
