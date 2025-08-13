@@ -313,6 +313,14 @@ func BenchmarkSliceFilterMultiple(b *testing.B) {
 	}
 }
 
+func BenchmarkSliceFilterTransform(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceFilterTransformTestCases {
+			_ = SliceFilterTransform(tc.predicate, tc.transform, tc.input)
+		}
+	}
+}
+
 func BenchmarkSliceFilterInPlace(b *testing.B) {
 	// Pre-copy test case inputs to prevent modifying the actual tc.input field
 	testInputs := make([][]int, len(sliceTestCases))

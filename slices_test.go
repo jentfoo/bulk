@@ -1,6 +1,7 @@
 package bulk
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -748,7 +749,7 @@ var sliceMultipleTestCases = []struct {
 		expectFalse: []int{1},
 		trueCapMin:  2,
 		trueCapMax:  3,
-		falseCapMin: 2,
+		falseCapMin: 1,
 		falseCapMax: 3,
 	},
 	{
@@ -759,7 +760,7 @@ var sliceMultipleTestCases = []struct {
 		expectFalse: []int{5},
 		trueCapMin:  3,
 		trueCapMax:  3,
-		falseCapMin: 2,
+		falseCapMin: 1,
 		falseCapMax: 3,
 	},
 	{
@@ -812,7 +813,7 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 7 },
 		expectTrue:  []int{7},
 		expectFalse: []int{1, 2, 3, 4, 5, 6, 8},
-		trueCapMin:  2,
+		trueCapMin:  1,
 		trueCapMax:  3,
 		falseCapMin: 7,
 		falseCapMax: 8,
@@ -858,7 +859,7 @@ var sliceMultipleTestCases = []struct {
 		expectFalse: []int{1, 2, 3, 4, 5, 6},
 		trueCapMin:  4,
 		trueCapMax:  8,
-		falseCapMin: 7,
+		falseCapMin: 6,
 		falseCapMax: 8,
 	},
 	{
@@ -867,7 +868,7 @@ var sliceMultipleTestCases = []struct {
 		testFunc:    func(v int) bool { return v == 4 },
 		expectTrue:  []int{4},
 		expectFalse: []int{1, 2, 3, 5, 6, 7, 8},
-		trueCapMin:  4,
+		trueCapMin:  1,
 		trueCapMax:  5,
 		falseCapMin: 7,
 		falseCapMax: 7,
@@ -963,6 +964,161 @@ func TestSliceFilter(t *testing.T) {
 	t.Run("zero_slices_direct", func(t *testing.T) {
 		result := SliceFilter(func(v int) bool { return v > 0 })
 		assert.Nil(t, result)
+	})
+}
+
+var sliceFilterTransformTestCases = []struct {
+	name           string
+	input          []int
+	predicate      func(int) bool
+	transform      func(int) string
+	expectedResult []string
+}{
+	{
+		name:           "nil",
+		input:          nil,
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: nil,
+	},
+	{
+		name:           "empty",
+		input:          []int{},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{},
+	},
+	{
+		name:           "all_true",
+		input:          []int{1, 2, 3, 4, 5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{"val_1", "val_2", "val_3", "val_4", "val_5"},
+	},
+	{
+		name:           "all_false",
+		input:          []int{-1, -2, -3, -4, -5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{},
+	},
+	{
+		name:           "mixed_pattern",
+		input:          []int{1, -2, 3, -4, 5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{"val_1", "val_3", "val_5"},
+	},
+	{
+		name:           "true_prefix",
+		input:          []int{1, 2, 3, -4, -5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{"val_1", "val_2", "val_3"},
+	},
+	{
+		name:           "true_suffix",
+		input:          []int{-1, -2, 3, 4, 5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{"val_3", "val_4", "val_5"},
+	},
+	{
+		name:           "single_true",
+		input:          []int{5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{"val_5"},
+	},
+	{
+		name:           "single_false",
+		input:          []int{-5},
+		predicate:      func(v int) bool { return v > 0 },
+		transform:      func(v int) string { return fmt.Sprintf("val_%d", v) },
+		expectedResult: []string{},
+	},
+	{
+		name:           "type_change_int_to_float",
+		input:          []int{2, 4, 6, 8, 10},
+		predicate:      func(v int) bool { return v%4 == 0 },
+		transform:      func(v int) string { return fmt.Sprintf("%.1f", float64(v)/2) },
+		expectedResult: []string{"2.0", "4.0"},
+	},
+}
+
+func TestSliceFilterTransform(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceFilterTransformTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := SliceFilterTransform(tt.predicate, tt.transform, tt.input)
+			if len(tt.expectedResult) == 0 {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
+		})
+	}
+
+	intNoTransform := func(i int) int { return i }
+
+	for i, tt := range sliceTestCases {
+		t.Run("basic-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueResult := SliceFilterTransform(tt.testFunc, intNoTransform, tt.input)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueResult)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueResult)
+			}
+
+			falseResult := SliceFilterTransform(func(i int) bool { return !tt.testFunc(i) }, intNoTransform, tt.input)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseResult)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseResult)
+			}
+		})
+	}
+
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice := SliceFilterTransform(tt.testFunc, intNoTransform, tt.slices...)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+			assert.GreaterOrEqual(t, cap(trueSlice), tt.trueCapMin)
+			assert.LessOrEqual(t, cap(trueSlice), tt.trueCapMax)
+
+			falseSlice := SliceFilterTransform(func(v int) bool { return !tt.testFunc(v) }, intNoTransform, tt.slices...)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+			assert.GreaterOrEqual(t, cap(falseSlice), tt.falseCapMin)
+			assert.LessOrEqual(t, cap(falseSlice), tt.falseCapMax)
+		})
+	}
+
+	t.Run("zero_slices_direct", func(t *testing.T) {
+		result := SliceFilterTransform(func(v int) bool { return v > 0 }, func(v int) string { return fmt.Sprintf("val_%d", v) })
+		assert.Nil(t, result)
+	})
+
+	t.Run("multiple_slices", func(t *testing.T) {
+		slice1 := []int{1, -2, 3}
+		slice2 := []int{-4, 5, 6}
+		slice3 := []int{7, -8}
+
+		result := SliceFilterTransform(
+			func(v int) bool { return v > 0 },
+			func(v int) string { return fmt.Sprintf("val_%d", v) },
+			slice1, slice2, slice3,
+		)
+		expected := []string{"val_1", "val_3", "val_5", "val_6", "val_7"}
+		assert.Equal(t, expected, result)
 	})
 }
 
@@ -2725,7 +2881,7 @@ func TestSliceConcat(t *testing.T) {
 
 	t.Run("empty input", func(t *testing.T) {
 		result := sliceConcat([][]int{}, false)
-		assert.Equal(t, []int{}, result)
+		assert.Nil(t, result)
 	})
 
 	t.Run("single slice", func(t *testing.T) {

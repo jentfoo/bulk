@@ -119,7 +119,7 @@ func singleSliceFilter[T any](predicate func(val T) bool, slice []T) ([]T, bool)
 func sliceConcat[T any](slices [][]T, inPlace bool) []T {
 	switch len(slices) {
 	case 0:
-		return make([]T, 0)
+		return nil
 	case 1:
 		return slices[0]
 	case 2:
@@ -152,6 +152,127 @@ func SliceFilterInto[T any](dest []T, predicate func(T) bool, inputs ...[]T) []T
 		for _, val := range input {
 			if predicate(val) {
 				dest = append(dest, val)
+			}
+		}
+	}
+	return dest
+}
+
+// SliceFilterTransform returns transformed elements that pass the predicate function.
+// Combines filtering and transformation in a single efficient pass.
+// May return views when possible for performance optimization.
+func SliceFilterTransform[I any, R any](predicate func(I) bool, transform func(I) R, inputs ...[]I) []R {
+	switch len(inputs) {
+	case 0:
+		return nil
+	case 1:
+		return singleSliceFilterTransform(predicate, transform, inputs[0])
+	}
+
+	var results [][]R
+	for i, slice := range inputs {
+		// simpler because empty results will never have capacity, so we only have to care about parts with results
+		partResult := singleSliceFilterTransform(predicate, transform, slice)
+		if len(partResult) > 0 {
+			if results == nil {
+				results = make([][]R, 0, len(inputs)-i)
+			}
+			results = append(results, partResult)
+		}
+	}
+	return sliceConcat(results, true)
+}
+
+// singleSliceFilterTransform filters and transforms a single slice based on the predicate and transform functions.
+func singleSliceFilterTransform[I any, R any](predicate func(I) bool, transform func(I) R, slice []I) []R {
+	for falseIdx, val := range slice {
+		if predicate(val) {
+			continue // continue till first false is found
+		}
+
+		// build and return result
+		if falseIdx == 0 {
+			// Track state transitions for view optimization
+			firstTrueIdx := -1
+
+			// Find first true element
+			for i := falseIdx + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					firstTrueIdx = i
+					break
+				}
+			}
+			if firstTrueIdx == -1 {
+				return nil // No true elements found, return empty slice
+			}
+
+			// Check if all remaining elements are consecutive and true
+			consecutiveEnd := firstTrueIdx
+			nonConsecutiveStart := -1
+			for i := firstTrueIdx + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					consecutiveEnd = i
+					continue
+				}
+				// Found a false element, break to check if consecutive section continues
+				nonConsecutiveStart = i
+				break
+			}
+			if nonConsecutiveStart < 0 {
+				// All elements from firstTrueIdx to end are true - transform consecutive section
+				return SliceTransform(transform, slice[firstTrueIdx:])
+			}
+
+			// if any more trues, we have to allocate and append, otherwise return transformed slice
+			for j := nonConsecutiveStart + 1; j < len(slice); j++ {
+				if predicate(slice[j]) {
+					// Found another true after false, not consecutive - need to allocate
+					// worst case size: (consecutiveEnd-firstTrueIdx+1) + 1 + (len(slice) - j - 1) (+1 -1 simplified out)
+					result := make([]R, 0, (consecutiveEnd-firstTrueIdx+1)+capGuess(len(slice)-j))
+					for i := firstTrueIdx; i <= consecutiveEnd; i++ {
+						result = append(result, transform(slice[i]))
+					}
+					result = append(result, transform(slice[j]))
+
+					// Continue appending remaining true elements
+					return SliceFilterTransformInto(result, predicate, transform, slice[j+1:])
+				}
+			}
+			// No more true elements found, return consecutive transformed slice
+			return SliceTransform(transform, slice[firstTrueIdx:consecutiveEnd+1])
+		} else { // Started true, now first false found
+			// Find first true element after falseIdx
+			secondTrueIdx := -1
+			for i := falseIdx + 1; i < len(slice); i++ {
+				if predicate(slice[i]) {
+					secondTrueIdx = i
+					break
+				}
+			}
+			if secondTrueIdx < 0 {
+				// No true elements in suffix, return transformed prefix only
+				return SliceTransform(transform, slice[:falseIdx])
+			}
+
+			// true+ -> false+ -> true - We must allocate at this point
+			result := make([]R, 0, falseIdx+capGuess(len(slice)-secondTrueIdx))
+			for i := 0; i < falseIdx; i++ {
+				result = append(result, transform(slice[i]))
+			}
+			result = append(result, transform(slice[secondTrueIdx]))
+			return SliceFilterTransformInto(result, predicate, transform, slice[secondTrueIdx+1:])
+		}
+	}
+	// all records tested to true - transform all elements
+	return SliceTransform(transform, slice)
+}
+
+// SliceFilterTransformInto appends transformed elements that pass the predicate function from the input slices into dest.
+func SliceFilterTransformInto[I any, R any](dest []R, predicate func(I) bool, transform func(I) R, inputs ...[]I) []R {
+	for _, input := range inputs {
+		for _, val := range input {
+			if predicate(val) {
+				dest = append(dest, transform(val))
 			}
 		}
 	}
