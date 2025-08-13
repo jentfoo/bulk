@@ -1,11 +1,13 @@
 package bulk
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var sliceLargeInput = []int{
@@ -1122,6 +1124,377 @@ func TestSliceFilterTransform(t *testing.T) {
 	})
 }
 
+func TestSliceFilterTransformErr(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceFilterTransformTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result, err := SliceFilterTransformErr(tt.predicate, func(i int) (string, error) {
+				return tt.transform(i), nil
+			}, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectedResult) == 0 {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
+		})
+	}
+
+	intNoTransform := func(i int) (int, error) { return i, nil }
+
+	for i, tt := range sliceTestCases {
+		t.Run("basic-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueResult, err := SliceFilterTransformErr(tt.testFunc, intNoTransform, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueResult)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueResult)
+			}
+
+			falseResult, err := SliceFilterTransformErr(func(i int) bool { return !tt.testFunc(i) },
+				intNoTransform, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseResult)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseResult)
+			}
+		})
+	}
+
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice, err := SliceFilterTransformErr(tt.testFunc, intNoTransform, tt.slices...)
+			require.NoError(t, err)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			falseSlice, err := SliceFilterTransformErr(func(v int) bool { return !tt.testFunc(v) },
+				intNoTransform, tt.slices...)
+			require.NoError(t, err)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+
+	t.Run("error on first element", func(t *testing.T) {
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i > 0 }, // filter positive numbers
+			func(i int) (string, error) { return "", errors.New("transform error") },
+			[]int{1, 2, 3},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "transform error", err.Error())
+		assert.Empty(t, result)
+	})
+
+	t.Run("error in middle with partial results", func(t *testing.T) {
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i > 0 }, // filter positive numbers
+			func(i int) (string, error) {
+				if i == 3 {
+					return "", errors.New("error on 3")
+				}
+				return strconv.Itoa(i * 10), nil
+			},
+			[]int{1, 2, 3, 4},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 3", err.Error())
+		assert.Equal(t, []string{"10", "20"}, result) // partial results before error
+	})
+
+	t.Run("error in consecutive section", func(t *testing.T) {
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i%2 == 0 }, // filter even numbers
+			func(i int) (string, error) {
+				if i == 4 {
+					return "", errors.New("error on 4")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2, 4, 6}, // 2,4,6 pass filter but error on 4
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 4", err.Error())
+		assert.Equal(t, []string{"2"}, result) // partial results before error
+	})
+
+	t.Run("error in multi-slice scenario", func(t *testing.T) {
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i > 0 },
+			func(i int) (string, error) {
+				if i == 4 {
+					return "", errors.New("error on 4")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2}, []int{3, 4, 5}, // error occurs in second slice
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 4", err.Error())
+		assert.Equal(t, []string{"1", "2", "3"}, result) // results from first slice + partial from second
+	})
+
+	t.Run("error after filter skips elements", func(t *testing.T) {
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i%2 == 1 }, // filter odd numbers
+			func(i int) (string, error) {
+				if i == 5 {
+					return "", errors.New("error on 5")
+				}
+				return strconv.Itoa(i * 100), nil
+			},
+			[]int{1, 2, 3, 4, 5, 6, 7}, // 1,3,5,7 pass filter but error on 5
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 5", err.Error())
+		assert.Equal(t, []string{"100", "300"}, result) // partial results before error
+	})
+
+	t.Run("error in consecutive section inner loop", func(t *testing.T) {
+		// This targets the error path while processing consecutive true elements after finding non-consecutive trues
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i != 4 }, // filter all except 4
+			func(i int) (string, error) {
+				if i == 2 { // error on second element in consecutive section
+					return "", errors.New("error on 2")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2, 3, 4, 5}, // 1,2,3 consecutive, 4 skipped, 5 true -> triggers non-consecutive path
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 2", err.Error())
+		assert.Equal(t, []string{"1"}, result) // partial result before error in consecutive section
+	})
+
+	t.Run("error in true-false-true pattern", func(t *testing.T) {
+		// This targets the specific error path where an error occurs in the true+false+true section after processing the initial true elements
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i != 3 }, // filter all except 3 (creates true+false+true pattern)
+			func(i int) (string, error) {
+				if i == 4 { // error on element in second true section
+					return "", errors.New("error on 4")
+				}
+				return strconv.Itoa(i * 10), nil
+			},
+			[]int{1, 2, 3, 4, 5}, // 1,2 true, 3 false, 4,5 true -> triggers true+false+true path
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 4", err.Error())
+		assert.Equal(t, []string{"10", "20"}, result) // results from initial true section only
+	})
+
+	t.Run("error in non-consecutive allocation path - consecutive section", func(t *testing.T) {
+		// This targets error during consecutive section transformation
+		// Pattern: false, true+, false+, true -> triggers "Found another true after false" path
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i != 1 && i != 4 }, // filter out 1 and 4
+			func(i int) (string, error) {
+				if i == 3 { // error in consecutive section (2,3 are consecutive trues)
+					return "", errors.New("error on 3")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2, 3, 4, 5}, // 1 false, 2,3 true consecutive, 4 false, 5 true -> non-consecutive
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 3", err.Error())
+		assert.Equal(t, []string{"2"}, result) // partial result from consecutive section before error
+	})
+
+	t.Run("error in non-consecutive allocation path - slice[j]", func(t *testing.T) {
+		// This targets error during slice[j] transformation
+		// Pattern: false, true+, false+, true -> triggers "Found another true after false" path
+		result, err := SliceFilterTransformErr(
+			func(i int) bool { return i != 1 && i != 4 }, // filter out 1 and 4
+			func(i int) (string, error) {
+				if i == 5 { // error on slice[j] (the later true element)
+					return "", errors.New("error on 5")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2, 3, 4, 5}, // 1 false, 2,3 true consecutive, 4 false, 5 true -> non-consecutive
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 5", err.Error())
+		assert.Equal(t, []string{"2", "3"}, result) // consecutive section processed, error on slice[j]
+	})
+}
+
+func TestSliceFilterTransformInto(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceFilterTransformTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := SliceFilterTransformInto([]string{}, tt.predicate, tt.transform, tt.input)
+			if len(tt.expectedResult) == 0 {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
+		})
+	}
+
+	intNoTransform := func(i int) int { return i }
+
+	for i, tt := range sliceTestCases {
+		t.Run("basic-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueResult := SliceFilterTransformInto([]int{}, tt.testFunc, intNoTransform, tt.input)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueResult)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueResult)
+			}
+
+			falseResult := SliceFilterTransformInto([]int{}, func(i int) bool { return !tt.testFunc(i) }, intNoTransform, tt.input)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseResult)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseResult)
+			}
+		})
+	}
+
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice := SliceFilterTransformInto([]int{}, tt.testFunc, intNoTransform, tt.slices...)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			falseSlice := SliceFilterTransformInto([]int{}, func(v int) bool { return !tt.testFunc(v) }, intNoTransform, tt.slices...)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+}
+
+func TestSliceFilterTransformErrInto(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range sliceFilterTransformTestCases {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result, err := SliceFilterTransformErrInto([]string{}, tt.predicate, func(i int) (string, error) {
+				return tt.transform(i), nil
+			}, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectedResult) == 0 {
+				assert.Empty(t, result)
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
+		})
+	}
+
+	intNoTransform := func(i int) (int, error) { return i, nil }
+
+	for i, tt := range sliceTestCases {
+		t.Run("basic-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueResult, err := SliceFilterTransformErrInto([]int{}, tt.testFunc, intNoTransform, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueResult)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueResult)
+			}
+
+			falseResult, err := SliceFilterTransformErrInto([]int{}, func(i int) bool { return !tt.testFunc(i) },
+				intNoTransform, tt.input)
+			require.NoError(t, err)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseResult)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseResult)
+			}
+		})
+	}
+
+	for i, tt := range sliceMultipleTestCases {
+		t.Run("multi-"+strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			trueSlice, err := SliceFilterTransformErrInto([]int{}, tt.testFunc, intNoTransform, tt.slices...)
+			require.NoError(t, err)
+			if len(tt.expectTrue) == 0 {
+				assert.Empty(t, trueSlice)
+			} else {
+				assert.Equal(t, tt.expectTrue, trueSlice)
+			}
+
+			falseSlice, err := SliceFilterTransformErrInto([]int{}, func(v int) bool { return !tt.testFunc(v) },
+				intNoTransform, tt.slices...)
+			require.NoError(t, err)
+			if len(tt.expectFalse) == 0 {
+				assert.Empty(t, falseSlice)
+			} else {
+				assert.Equal(t, tt.expectFalse, falseSlice)
+			}
+		})
+	}
+
+	t.Run("error on first element", func(t *testing.T) {
+		dest := []string{"existing"}
+		result, err := SliceFilterTransformErrInto(
+			dest,
+			func(i int) bool { return i > 0 }, // filter positive numbers
+			func(i int) (string, error) { return "", errors.New("transform error") },
+			[]int{1, 2, 3},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "transform error", err.Error())
+		assert.Equal(t, []string{"existing"}, result) // no new elements added
+	})
+
+	t.Run("error in middle with partial results", func(t *testing.T) {
+		dest := []string{"start"}
+		result, err := SliceFilterTransformErrInto(
+			dest,
+			func(i int) bool { return i > 0 }, // filter positive numbers
+			func(i int) (string, error) {
+				if i == 3 {
+					return "", errors.New("error on 3")
+				}
+				return strconv.Itoa(i * 10), nil
+			},
+			[]int{1, 2, 3, 4},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 3", err.Error())
+		assert.Equal(t, []string{"start", "10", "20"}, result) // partial results appended
+	})
+
+	t.Run("error across multiple input slices", func(t *testing.T) {
+		dest := []string{}
+		result, err := SliceFilterTransformErrInto(
+			dest,
+			func(i int) bool { return i%2 == 1 }, // filter odd numbers
+			func(i int) (string, error) {
+				if i == 5 {
+					return "", errors.New("error on 5")
+				}
+				return strconv.Itoa(i * 100), nil
+			},
+			[]int{1, 2, 3}, []int{4, 5, 6, 7}, // error in second slice
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 5", err.Error())
+		assert.Equal(t, []string{"100", "300"}, result) // results from first slice only
+	})
+}
+
 func TestSliceFilterInto(t *testing.T) {
 	t.Parallel()
 
@@ -1711,6 +2084,132 @@ func TestSliceTransform(t *testing.T) {
 		input := []int{10, 20, 30}
 		result := SliceTransform(func(i int) int { return i / 10 }, input)
 		assert.Equal(t, []int{1, 2, 3}, result)
+	})
+}
+
+func TestSliceTransformErr(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		var input []int
+		result, err := SliceTransformErr(func(i int) (int, error) { return i, nil }, input)
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		result, err := SliceTransformErr(func(i int) (int, error) { return i, nil }, []int{})
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("int_to_string", func(t *testing.T) {
+		input := []int{1, 2, 3}
+		result, err := SliceTransformErr(func(i int) (string, error) { return strconv.Itoa(i), nil }, input)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1", "2", "3"}, result)
+	})
+
+	t.Run("float_to_int", func(t *testing.T) {
+		input := []float64{1.1, 2.2}
+		result, err := SliceTransformErr(func(f float64) (int, error) { return int(f), nil }, input)
+		require.NoError(t, err)
+		assert.Equal(t, []int{1, 2}, result)
+	})
+
+	t.Run("multiple_slices_concatenated", func(t *testing.T) {
+		slice1 := []int{1, 2}
+		slice2 := []int{3, 4}
+		slice3 := []int{5}
+		result, err := SliceTransformErr(func(i int) (string, error) { return strconv.Itoa(i), nil }, slice1, slice2, slice3)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1", "2", "3", "4", "5"}, result)
+	})
+
+	t.Run("multiple_slices_with_empty", func(t *testing.T) {
+		slice1 := []int{1, 2}
+		slice2 := []int{}
+		slice3 := []int{3, 4}
+		result, err := SliceTransformErr(func(i int) (int, error) { return i * 2, nil }, slice1, slice2, slice3)
+		require.NoError(t, err)
+		assert.Equal(t, []int{2, 4, 6, 8}, result)
+	})
+
+	t.Run("multiple_slices_all_empty", func(t *testing.T) {
+		result, err := SliceTransformErr(func(i int) (int, error) { return i, nil }, []int{}, []int{}, []int{})
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("multiple_slices_with_nil", func(t *testing.T) {
+		slice1 := []int{1}
+		var slice2 []int
+		slice3 := []int{2, 3}
+		result, err := SliceTransformErr(func(i int) (string, error) { return strconv.Itoa(i), nil }, slice1, slice2, slice3)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1", "2", "3"}, result)
+	})
+
+	t.Run("single_slice_maintains_compatibility", func(t *testing.T) {
+		input := []int{10, 20, 30}
+		result, err := SliceTransformErr(func(i int) (int, error) { return i / 10, nil }, input)
+		require.NoError(t, err)
+		assert.Equal(t, []int{1, 2, 3}, result)
+	})
+
+	t.Run("error on first element", func(t *testing.T) {
+		result, err := SliceTransformErr(
+			func(i int) (string, error) { return "", errors.New("transform error") },
+			[]int{1, 2, 3},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "transform error", err.Error())
+		assert.Empty(t, result)
+	})
+
+	t.Run("error in middle with partial results", func(t *testing.T) {
+		result, err := SliceTransformErr(
+			func(i int) (string, error) {
+				if i == 3 {
+					return "", errors.New("error on 3")
+				}
+				return strconv.Itoa(i * 10), nil
+			},
+			[]int{1, 2, 3, 4},
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 3", err.Error())
+		assert.Equal(t, []string{"10", "20"}, result) // partial results before error
+	})
+
+	t.Run("error in multi-slice scenario", func(t *testing.T) {
+		result, err := SliceTransformErr(
+			func(i int) (string, error) {
+				if i == 4 {
+					return "", errors.New("error on 4")
+				}
+				return strconv.Itoa(i), nil
+			},
+			[]int{1, 2}, []int{3, 4, 5}, // error occurs in second slice
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 4", err.Error())
+		assert.Equal(t, []string{"1", "2", "3"}, result) // results from first slice + partial from second
+	})
+
+	t.Run("error at end of first slice", func(t *testing.T) {
+		result, err := SliceTransformErr(
+			func(i int) (string, error) {
+				if i == 2 {
+					return "", errors.New("error on 2")
+				}
+				return strconv.Itoa(i * 100), nil
+			},
+			[]int{1, 2}, []int{3, 4}, // error at end of first slice
+		)
+		require.Error(t, err)
+		assert.Equal(t, "error on 2", err.Error())
+		assert.Equal(t, []string{"100"}, result) // partial result from first slice only
 	})
 }
 

@@ -305,6 +305,14 @@ func BenchmarkSliceFilter(b *testing.B) {
 	}
 }
 
+func BenchmarkSliceFilterInto(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceTestCases {
+			_ = SliceFilterInto([]int{}, tc.testFunc, tc.input)
+		}
+	}
+}
+
 func BenchmarkSliceFilterMultiple(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range sliceMultipleTestCases {
@@ -317,6 +325,38 @@ func BenchmarkSliceFilterTransform(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for _, tc := range sliceFilterTransformTestCases {
 			_ = SliceFilterTransform(tc.predicate, tc.transform, tc.input)
+		}
+
+		for _, tc := range sliceTestCases {
+			_ = SliceFilterTransform(tc.testFunc, func(i int) int { return i }, tc.input)
+		}
+	}
+}
+
+func BenchmarkSliceFilterTransformErr(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceFilterTransformTestCases {
+			_, _ = SliceFilterTransformErr(tc.predicate, func(i int) (string, error) {
+				return tc.transform(i), nil
+			}, tc.input)
+		}
+
+		for _, tc := range sliceTestCases {
+			_, _ = SliceFilterTransformErr(tc.testFunc, func(i int) (int, error) {
+				return i, nil
+			}, tc.input)
+		}
+	}
+}
+
+func BenchmarkSliceFilterTransformInto(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceFilterTransformTestCases {
+			_ = SliceFilterTransformInto([]string{}, tc.predicate, tc.transform, tc.input)
+		}
+
+		for _, tc := range sliceTestCases {
+			_ = SliceFilterTransformInto([]int{}, tc.testFunc, func(i int) int { return i }, tc.input)
 		}
 	}
 }
@@ -378,6 +418,24 @@ func BenchmarkSliceSplitInPlaceUnstable(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j, tc := range sliceTestCases {
 			_, _ = SliceSplitInPlaceUnstable(tc.testFunc, testInputs[j])
+		}
+	}
+}
+
+func BenchmarkSliceTransform(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceFilterTransformTestCases {
+			_ = SliceTransform(tc.transform, tc.input)
+		}
+	}
+}
+
+func BenchmarkSliceTransformErr(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, tc := range sliceFilterTransformTestCases {
+			_, _ = SliceTransformErr(func(i int) (string, error) {
+				return tc.transform(i), nil
+			}, tc.input)
 		}
 	}
 }
