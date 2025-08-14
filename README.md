@@ -9,27 +9,37 @@
 
 ---
 
-## Operation Types
+## Core Patterns
 
-**Default Operations** (recommended):
-- Safe: never corrupt input data
-- Smart: avoid allocations when possible (return views, truncate slices, etc.)
-- Fast: better performance than standard "always copy" designs
+### Function Variants
+- **Base functions** (e.g., `SliceFilter`): Optimized operations that avoid allocations when possible (views returned)
+- **`InPlace` variants** (e.g., `SliceFilterInPlace`): Zero-allocation operations that modify input slices
+- **`Into` variants** (e.g., `SliceFilterInto`): Append results to existing slices
+- **`By` variants** (e.g., `SliceToGroupsBy`): Use custom key functions for operations
 
-**InPlace Operations** (maximum performance):
-- Fastest: zero allocations by reusing input slice memory
-- Unsafe: input slice is modified and must be discarded after use
-- Critical: for performance-sensitive code where memory pressure matters
+### Performance Strategy
+- Default functions return views or truncated slices when safe
+- Multi-slice operations enable cross-slice optimizations
+- `InPlace` variants provide zero-allocation guarantees for performance-critical code
 
----
+### Important: Memory Safety
+**Default functions may return views** - appending to results may affect the original slice:
+```go
+data := []int{1, 2, 4, 5, 10, 15, 20}
+lowVals := bulk.SliceFilter(func(n int) bool { return n <= 4 }, data)
+// lowVals may be a view of data
 
-## Features
+// Safe: read-only usage
+fmt.Println(lowVals)
 
-* **Zero-allocation InPlace variants** for maximum performance
-* **Conditional optimizations** that avoid copies when safe
-* **Multi-slice operations** enabling intelligent optimizations across all slices
-* Generic support using Go 1.18+ type parameters
-* Simple, consistent API in a single package
+// Unsafe: modifying the result
+evens = append(lowVals, 99) // ⚠️ May corrupt original data slice
+```
+
+**When to use each variant:**
+- **Default functions**: When you won't modify the result (read-only usage)
+- **`InPlace` variants**: When input slice can be discarded after operation
+- **Copy-safe alternatives**: Consider [lo](https://github.com/samber/lo), [Pie](https://github.com/elliotchance/pie), or a manual copy on result from `bulk`
 
 ---
 
@@ -47,13 +57,11 @@ import "github.com/go-analyze/bulk"
 
 ---
 
-## Usage
+## Essential Operations
 
-### Slice Operations
+### Filtering & Processing
 
-#### Filtering
-
-##### `SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T`
+**`SliceFilter[T any](predicate func(v T) bool, slices ...[]T) []T`**  
 Filters elements that pass the predicate function from one or multiple slices. **Zero allocations** when all true elements are consecutive.
 
 ```go
@@ -63,7 +71,7 @@ evens := bulk.SliceFilter(func(n int) bool { return n%2 == 0 }, numbers)
 // Original slice unchanged: [1, 2, 3, 4, 5, 6]
 ```
 
-##### `SliceFilterInPlace[T any](predicate func(v T) bool, slices ...[]T) []T`
+**`SliceFilterInPlace[T any](predicate func(v T) bool, slices ...[]T) []T`**  
 **Zero-allocation** filtering by reusing input slice memory (zero allocation only guaranteed with a single slice, but will always have less allocations than SliceFilter).
 
 ```go
@@ -73,120 +81,74 @@ evens := bulk.SliceFilterInPlace(func(n int) bool { return n%2 == 0 }, numbers)
 // Warning: numbers slice is now corrupted and must be discarded
 ```
 
-#### Partitioning Operations
+**`SliceFilterTransform[I, R any](predicate func(I) bool, transform func(I) R, inputs ...[]I) []R`**  
+Filter and convert in one pass - the most efficient pattern for common data processing.
 
-##### `SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T)`
+```go
+numbers := []int{1, 2, 3, 4, 5, 6}
+evenStrings := bulk.SliceFilterTransform(
+    func(n int) bool { return n%2 == 0 },     // filter: keep evens
+    func(n int) string { return fmt.Sprintf("num_%d", n) }, // transform: to strings
+    numbers)
+// Result: ["num_2", "num_4", "num_6"]
+```
+
+### Partitioning
+
+**`SliceSplit[T any](predicate func(v T) bool, slices ...[]T) ([]T, []T)`**  
 Partitions elements from one or multiple slices into two slices based on predicate.
 
 ```go
 numbers := []int{1, 2, 3, 4, 5, 6}
 evens, odds := bulk.SliceSplit(func(n int) bool { return n%2 == 0 }, numbers)
-// evens: [2, 4, 6]
-// odds: [1, 3, 5]
+// evens: [2, 4, 6], odds: [1, 3, 5]
 ```
 
-##### `SliceSplitInPlace[T any](predicate func(v T) bool, slice []T) ([]T, []T)`
-**Memory-efficient** partitioning that reuses the input slice for one partition.
+**`SliceSplitInPlace` and `SliceSplitInPlaceUnstable` variants** provide memory-efficient and fastest partitioning respectively.
 
-```go
-numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
-evens, odds := bulk.SliceSplitInPlace(func(n int) bool { return n%2 == 0 }, numbers)
-// evens: [2, 4, 6] (reuses original slice memory)
-// odds: [1, 3, 5] (new allocation only when needed)
-```
+### Set Operations
 
-##### `SliceSplitInPlaceUnstable[T any](predicate func(v T) bool, slice []T) ([]T, []T)`
-**Fastest** partitioning using two-pointer technique. Element order may change.
-
-```go
-numbers := []int{1, 2, 3, 4, 5, 6} // This slice will be modified!
-evens, odds := bulk.SliceSplitInPlaceUnstable(func(n int) bool { return n%2 == 0 }, numbers)
-// evens: [2, 4, 6] (order may differ from input)
-// odds: [1, 3, 5] (order may differ from input)
-```
-
-#### Transformation Operations
-
-##### `SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R`
-Converts each element using the provided conversion function.
-
-```go
-strings := []string{"1", "2", "3", "4"}
-numbers := bulk.SliceTransform(func(s string) int {
-    n, _ := strconv.Atoi(s)
-    return n
-}, strings)
-// Result: [1, 2, 3, 4]
-```
-
-#### Set Operations
-
-##### `SliceToSet[T comparable](slices ...[]T) map[T]struct{}`
+**`SliceToSet[T comparable](slices ...[]T) map[T]struct{}`**  
 Converts slices to a set for fast lookup and deduplication. Accepts multiple slices for union operations.
 
 ```go
 slice1 := []string{"a", "b", "c", "b"}
 slice2 := []string{"c", "d", "e"}
 set := bulk.SliceToSet(slice1, slice2)
-// Result: map[string]struct{}{"a": {}, "b": {}, "c": {}, "d": {}, "e": {}} (order may vary)
-```
+// Result: map[string]struct{}{"a": {}, "b": {}, "c": {}, "d": {}, "e": {}}
 
-**Deduplication Pattern:**
-```go
-import (
-    "maps"
-    "slices"
-    "github.com/go-analyze/bulk"
-)
-
+// Deduplication pattern:
 duplicates := []string{"apple", "banana", "apple", "cherry", "banana"}
 unique := slices.Collect(maps.Keys(bulk.SliceToSet(duplicates)))
 // Result: ["apple", "banana", "cherry"] (order may vary)
 ```
 
-##### `SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{}`
+**`SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{}`**  
 Creates a set using a key function to transform elements into comparable keys. Typically used to provide a field from within the structs within the slice.
 
-##### `SliceIntersect[T comparable](a, b []T) []T`
+**`SliceIntersect[T comparable](a, b []T) []T`**  
 Returns elements that exist in both slices, preserving order from slice a. Duplicates are automatically removed from the result.
 
 ```go
-numbers1 := []int{1, 2, 3, 4, 5}
-numbers2 := []int{3, 4, 5, 6, 7}
-intersection := bulk.SliceIntersect(numbers1, numbers2)
-// Result: [3, 4, 5]
-```
-
-##### `SliceDifference[T comparable](a, b []T) []T`
-Returns elements that exist in slice a but not in slice b, preserving order from slice a. Duplicates are automatically removed from the result.
-
-```go
-numbers1 := []int{1, 2, 3, 4, 5}
-numbers2 := []int{3, 4, 5, 6, 7}
-difference := bulk.SliceDifference(numbers1, numbers2)
-// Result: [1, 2]
-```
-
-**Practical Set Operation Examples:**
-```go
-// Find common interests between users
 userA := []string{"music", "sports", "reading", "cooking"}
 userB := []string{"sports", "movies", "cooking", "travel"}
 common := bulk.SliceIntersect(userA, userB)
 // Result: ["sports", "cooking"]
-
-// Find unique preferences for user A
-unique := bulk.SliceDifference(userA, userB)
-// Result: ["music", "reading"]
-
-// Union can be achieved with SliceToSet for deduplication
-union := slices.Collect(maps.Keys(bulk.SliceToSet(userA, userB)))
-// Result: all unique elements from both slices
 ```
 
-#### Counting Operations
+**`SliceDifference[T comparable](a, b []T) []T`**  
+Returns elements that exist in slice a but not in slice b, preserving order from slice a. Duplicates are automatically removed from the result.
 
-##### `SliceToCounts[T comparable](slices ...[]T) map[T]int`
+```go
+userA := []string{"music", "sports", "reading", "cooking"}
+userB := []string{"sports", "movies", "cooking", "travel"}
+unique := bulk.SliceDifference(userA, userB)
+// Result: ["music", "reading"] - things userA likes that userB doesn't
+```
+
+### Data Organization
+
+**`SliceToCounts[T comparable](slices ...[]T) map[T]int`**  
 Counts occurrences of each element across multiple slices.
 
 ```go
@@ -196,12 +158,7 @@ counts := bulk.SliceToCounts(slice1, slice2)
 // Result: map[string]int{"a": 2, "b": 2, "c": 2, "d": 1}
 ```
 
-##### `SliceToCountsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]int`
-Counts occurrences using a key function to group elements.
-
-#### Indexing Operations
-
-##### `SliceToIndexBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]T`
+**`SliceToIndexBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]T`**  
 Creates an index map where each key maps to the **last** value encountered.
 
 ```go
@@ -211,9 +168,7 @@ index := bulk.SliceToIndexBy(func(p Person) int { return p.ID }, people)
 // Result: map[int]Person{1: {1, "Alice_Updated"}, 2: {2, "Bob"}} (last wins)
 ```
 
-#### Grouping Operations
-
-##### `SliceToGroupsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K][]T`
+**`SliceToGroupsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K][]T`**  
 Groups elements by key derived by each entry, preserving all values for each key.
 
 ```go
@@ -231,10 +186,30 @@ groups := bulk.SliceToGroupsBy(func(p Person) string { return p.Dept }, people)
 
 ---
 
+## Function Discovery
+
+**Naming Pattern**: `[Collection][Operation][Variant]`
+
+### Collections
+- **`Slice`**: Operations on slices (e.g., `SliceFilter`, `SliceToSet`)
+- **`Map`**: Operations on maps (e.g., `MapInvert`)
+
+### Common Variants
+- **`InPlace`**: Zero-allocation, modifies input (e.g., `SliceFilterInPlace`)
+- **`Into`**: Append to existing collection (e.g., `SliceFilterInto`, `SliceIntoSet`)
+- **`By`**: Use custom key function (e.g., `SliceToSetBy`, `SliceToGroupsBy`)
+
+### Error Handling
+- **`Err`**: Functions that can return errors (e.g., `SliceFilterTransformErr`)
+
+Many operations offer multiple variants - check function signatures for the complete API.
+
+---
+
 ## When to use `bulk`
 
 * **Large data analyses** where minimizing memory pressure is critical
 * **Performance-sensitive loops** processing millions of elements
-* Scenarios where **in-place mutations** are safe and desired
+* Scenarios where **in-place mutations** are safe and desired (see `Memory Safety` above)
 
-If you require copy-on-write semantics as your primary workflow, consider other collection utilities like [Pie](https://github.com/elliotchance/pie) instead, which always returns independent slices but incurs more and larger memory allocations.
+If you require copy-on-write semantics as your primary workflow, consider the other options described in `Memory Safety`.
