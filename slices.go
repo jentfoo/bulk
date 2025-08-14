@@ -299,14 +299,9 @@ func singleSliceFilterTransform[I any, R any](predicate func(I) bool, transform 
 
 // SliceFilterTransformInto appends transformed elements that pass the predicate function from the input slices into dest.
 func SliceFilterTransformInto[I any, R any](dest []R, predicate func(I) bool, transform func(I) R, inputs ...[]I) []R {
-	for _, input := range inputs {
-		for _, val := range input {
-			if predicate(val) {
-				dest = append(dest, transform(val))
-			}
-		}
-	}
-	return dest
+	errTransform := func(i I) (R, error) { return transform(i), nil }
+	result, _ := SliceFilterTransformErrInto(dest, predicate, errTransform, inputs...)
+	return result
 }
 
 // SliceFilterTransformErrInto appends transformed elements that pass the predicate function from the input slices into dest.
