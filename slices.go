@@ -115,7 +115,7 @@ func singleSliceFilter[T any](predicate func(val T) bool, slice []T) ([]T, bool)
 }
 
 // sliceConcat is similar to slices.Concat (which is why API is not elevated),
-// but differs in if provided a single slice it's returned without a copy.
+// but differs in that if provided a single slice it's returned without a copy.
 func sliceConcat[T any](slices [][]T, inPlace bool) []T {
 	switch len(slices) {
 	case 0:
@@ -305,7 +305,7 @@ func SliceFilterTransformInto[I any, R any](dest []R, predicate func(I) bool, tr
 }
 
 // SliceFilterTransformErrInto appends transformed elements that pass the predicate function from the input slices into dest.
-// If the conversion function returns an error, appending will stop with the partial result returned and the original error.
+// If the conversion function returns an error, operation stops and returns the partial result with the original error.
 func SliceFilterTransformErrInto[I any, R any](dest []R, predicate func(I) bool, transform func(I) (R, error), inputs ...[]I) ([]R, error) {
 	for _, input := range inputs {
 		for _, val := range input {
@@ -322,7 +322,7 @@ func SliceFilterTransformErrInto[I any, R any](dest []R, predicate func(I) bool,
 }
 
 // SliceFilterInPlace returns elements that pass the predicate function.
-// Input slice is modified and must be discarded after calling.
+// The input slice is modified and must be discarded after calling.
 func SliceFilterInPlace[T any](predicate func(val T) bool, slices ...[]T) []T {
 	switch len(slices) {
 	case 0:
@@ -465,8 +465,8 @@ func singleSliceSplit[T any](predicate func(val T) bool, slice []T) ([]T, []T, b
 }
 
 // SliceSplitInPlace partitions elements based on the predicate function.
-// Input slice is modified and must be discarded after calling. Resulting slices will remain in the original order.
-// If order is not important use SliceSplitInPlaceUnstable for an even faster implementation.
+// The input slice is modified and must be discarded after calling. Resulting slices maintain original order.
+// If order is not important, use SliceSplitInPlaceUnstable for better performance.
 // Returns (trueElements, falseElements).
 func SliceSplitInPlace[T any](predicate func(val T) bool, slice []T) ([]T, []T) {
 	n := len(slice)
@@ -516,8 +516,8 @@ func SliceSplitInPlace[T any](predicate func(val T) bool, slice []T) ([]T, []T) 
 }
 
 // SliceSplitInPlaceUnstable partitions elements based on the predicate function.
-// Input slice is modified and must be discarded after calling.
-// Resulting slices order may change from the original input.
+// The input slice is modified and must be discarded after calling.
+// Element order may change from the original input.
 // Returns (trueElements, falseElements).
 func SliceSplitInPlaceUnstable[T any](predicate func(val T) bool, slice []T) ([]T, []T) {
 	if len(slice) == 0 {
@@ -557,21 +557,21 @@ func SliceTransform[I any, R any](conversion func(I) R, inputs ...[]I) []R {
 }
 
 // SliceTransformErr converts each element using the conversion function.
-// If the conversion function returns an error, appending will stop with the partial result returned and the original error.
+// If the conversion function returns an error, operation stops and returns the partial result with the original error.
 func SliceTransformErr[I any, R any](conversion func(I) (R, error), inputs ...[]I) ([]R, error) {
 	result := make([]R, 0, sliceTotalSize(inputs))
 	return SliceFilterTransformErrInto(result, func(_ I) bool { return true }, conversion, inputs...)
 }
 
-// SliceToSet accepts slices of a comparable type and returns a Map with the entries as the keys.
-// This allows an easy de-duplicated union between slices, as well as providing a map for fast lookup if values are present.
+// SliceToSet accepts slices of comparable types and returns a map with elements as keys.
+// This provides a deduplicated union of slices and enables fast lookups using the returned map.
 func SliceToSet[T comparable](slices ...[]T) map[T]struct{} {
 	result := make(map[T]struct{}, sliceTotalSize(slices))
 	SliceIntoSet(result, slices...)
 	return result
 }
 
-// SliceIntoSet accepts slices of a comparable type and a Map to set entries into.
+// SliceIntoSet adds elements from slices to an existing set map.
 func SliceIntoSet[T comparable](m map[T]struct{}, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
@@ -580,16 +580,15 @@ func SliceIntoSet[T comparable](m map[T]struct{}, slices ...[]T) {
 	}
 }
 
-// SliceToSetBy accepts slices of any type with a function to convert those types while storing the result
-// as the key to the resulting map. This allows in a single step a combination of SliceTransform with SliceToSet,
+// SliceToSetBy transforms slice elements using keyfunc and stores results as keys in a map.
+// This combines transformation and set creation in a single operation.	-
 func SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{} {
 	result := make(map[R]struct{}, sliceTotalSize(slices))
 	SliceIntoSetBy(result, keyfunc, slices...)
 	return result
 }
 
-// SliceIntoSetBy accepts slices of any type with a function to convert those types while storing the result
-// as the key to the resulting map.
+// SliceIntoSetBy transforms slice elements using keyfunc and adds results as keys to an existing set map.
 func SliceIntoSetBy[I any, R comparable](m map[R]struct{}, keyfunc func(I) R, slices ...[]I) {
 	for _, slice := range slices {
 		for _, inputVal := range slice {
@@ -598,15 +597,14 @@ func SliceIntoSetBy[I any, R comparable](m map[R]struct{}, keyfunc func(I) R, sl
 	}
 }
 
-// SliceToCounts accepts slices of a comparable type and returns a Map with the entries as the key similar to SliceToSet.
-// SliceToCounts will count how many times each entry is witnessed, provided through the returned map values.
+// SliceToCounts accepts slices of comparable types and returns a map with elements as keys and their counts as values.
 func SliceToCounts[T comparable](slices ...[]T) map[T]int {
 	result := make(map[T]int, sliceTotalSize(slices))
 	SliceIntoCounts(result, slices...)
 	return result
 }
 
-// SliceIntoCounts accepts slices of a comparable type and a Map with the entries to add the count to.
+// SliceIntoCounts adds element counts from slices to an existing count map.
 func SliceIntoCounts[T comparable](m map[T]int, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
@@ -615,15 +613,14 @@ func SliceIntoCounts[T comparable](m map[T]int, slices ...[]T) {
 	}
 }
 
-// SliceToCountsBy accepts slices of any type and returns a Map with the generated keys and their counts.
-// SliceToCountsBy will count how many times each generated key is witnessed, provided through the returned map values.
+// SliceToCountsBy transforms slice elements using keyfunc and returns a map with generated keys and their counts.
 func SliceToCountsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]int {
 	result := make(map[K]int, sliceTotalSize(slices))
 	SliceIntoCountsBy(result, keyfunc, slices...)
 	return result
 }
 
-// SliceIntoCountsBy accepts slices of any type and a Map with the generated keys and their counts which are added to.
+// SliceIntoCountsBy transforms slice elements using keyfunc and adds counts to an existing count map.
 func SliceIntoCountsBy[T any, K comparable](m map[K]int, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
@@ -632,16 +629,16 @@ func SliceIntoCountsBy[T any, K comparable](m map[K]int, keyfunc func(T) K, slic
 	}
 }
 
-// SliceToIndexBy accepts a function to convert the values to a comparable key, creating an index map.
-// Expects each key to be unique. If duplicate keys exist, later values overwrite earlier ones.
+// SliceToIndexBy creates an index map using keyfunc to generate keys from slice elements.
+// Keys should be unique. Duplicate keys will overwrite earlier values.
 func SliceToIndexBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K]T {
 	result := make(map[K]T, sliceTotalSize(slices))
 	SliceIntoIndexBy(result, keyfunc, slices...)
 	return result
 }
 
-// SliceIntoIndexBy accepts a function to convert the values to a comparable key, adding to the provided index map.
-// Expects each key to be unique. If duplicate keys exist, later values overwrite earlier ones.
+// SliceIntoIndexBy adds elements to an existing index map using keyfunc to generate keys.
+// Keys should be unique. Duplicate keys will overwrite earlier values.
 func SliceIntoIndexBy[T any, K comparable](m map[K]T, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
@@ -651,14 +648,14 @@ func SliceIntoIndexBy[T any, K comparable](m map[K]T, keyfunc func(T) K, slices 
 	}
 }
 
-// SliceToGroupsBy accepts a function to convert the values to a comparable key, and groups the values based on the keys.
+// SliceToGroupsBy groups slice elements by keys generated using keyfunc.
 func SliceToGroupsBy[T any, K comparable](keyfunc func(T) K, slices ...[]T) map[K][]T {
 	result := make(map[K][]T, sliceTotalSize(slices))
 	SliceIntoGroupsBy(result, keyfunc, slices...)
 	return result
 }
 
-// SliceIntoGroupsBy accepts a function to convert the values to a comparable key, and groups the values based on the keys.
+// SliceIntoGroupsBy adds elements to existing groups using keyfunc to generate keys.
 func SliceIntoGroupsBy[T any, K comparable](m map[K][]T, keyfunc func(T) K, slices ...[]T) {
 	for _, slice := range slices {
 		for _, value := range slice {
@@ -668,7 +665,7 @@ func SliceIntoGroupsBy[T any, K comparable](m map[K][]T, keyfunc func(T) K, slic
 	}
 }
 
-// SliceIntersect returns elements that exist in both slices, preserving order from slice a.
+// SliceIntersect returns elements that exist in both slices, preserving order from the first slice.
 func SliceIntersect[T comparable](a, b []T) []T {
 	if len(a) == 0 {
 		return a
@@ -703,7 +700,7 @@ func SliceIntersect[T comparable](a, b []T) []T {
 	return result
 }
 
-// SliceDifference returns elements that exist in slice a, but not in slice b, preserving order from slice a.
+// SliceDifference returns elements that exist in the first slice but not in the second, preserving order from the first slice.
 func SliceDifference[T comparable](a, b []T) []T {
 	if len(a) == 0 {
 		return a
@@ -728,7 +725,7 @@ func SliceDifference[T comparable](a, b []T) []T {
 	return result
 }
 
-// capGuess attempts to guess the sizing for an allocation, large allocations are reduced.
+// capGuess estimates allocation size, reducing large allocations in case of significant filtering.
 func capGuess(remaining int) int {
 	if remaining > 2048 {
 		return remaining / 2
