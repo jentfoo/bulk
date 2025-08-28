@@ -1,6 +1,7 @@
 package bulk
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -485,6 +486,23 @@ func BenchmarkSliceToGroupsBy(b *testing.B) {
 		for _, tc := range sliceToGroupsByTests {
 			_ = SliceToGroupsBy(tc.conversion, tc.inputSlices...)
 		}
+	}
+}
+
+func BenchmarkSliceToGroupsByGroupCount(b *testing.B) {
+	input := make([]int, 1000)
+	for i := range input {
+		input[i] = i
+	}
+
+	for _, groups := range []int{2, 10, 100, 1000} {
+		b.Run(strconv.Itoa(groups), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_ = SliceToGroupsBy(func(v int) int {
+					return v % groups
+				}, input)
+			}
+		})
 	}
 }
 
