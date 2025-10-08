@@ -474,45 +474,25 @@ func SliceSplitInPlace[T any](predicate func(val T) bool, slice []T) ([]T, []T) 
 		return slice, nil
 	}
 
-	if predicate(slice[0]) { // first element is true
-		// Reuse front of slice for TRUEs; allocate FALSE buffer lazily.
-		trueList := slice[:0]
-		trueList = append(trueList, slice[0]) // first element already known true
-
-		var falseBuf []T // stays nil if we never see a false
-		for i := 1; i < n; i++ {
-			val := slice[i]
-			isTrue := predicate(val) // one evaluation per element
-			if isTrue {
-				trueList = append(trueList, val) // writes to earlier indices only; safe
-			} else {
-				if falseBuf == nil { // Allocate when we discover the split
-					falseBuf = make([]T, 0, capGuess(n-i))
-				}
-				falseBuf = append(falseBuf, val)
-			}
-		}
-		return trueList, falseBuf
-	}
-
-	// Reuse front of slice for FALSEs; allocate TRUE buffer lazily.
-	falseList := slice[:0]
-	falseList = append(falseList, slice[0]) // first element already known false
-
-	var trueBuf []T // stays nil if we never see a true
+	match := predicate(slice[0])
+	matchList := slice[:1]
+	var otherList []T
 	for i := 1; i < n; i++ {
 		val := slice[i]
-		isTrue := predicate(val) // one evaluation per element
-		if isTrue {
-			if trueBuf == nil {
-				trueBuf = make([]T, 0, capGuess(n-i))
-			}
-			trueBuf = append(trueBuf, val)
+		if predicate(val) == match {
+			matchList = append(matchList, val) // writes to earlier indices only; safe
 		} else {
-			falseList = append(falseList, val) // safe as above
+			if otherList == nil { // Allocate when we discover the split
+				otherList = make([]T, 0, capGuess(n-i))
+			}
+			otherList = append(otherList, val)
 		}
 	}
-	return trueBuf, falseList
+	if match {
+		return matchList, otherList
+	} else {
+		return otherList, matchList
+	}
 }
 
 // SliceSplitInPlaceUnstable partitions elements based on the predicate function.
