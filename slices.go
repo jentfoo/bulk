@@ -561,7 +561,7 @@ func SliceIntoSet[T comparable](m map[T]struct{}, slices ...[]T) {
 }
 
 // SliceToSetBy transforms slice elements using keyfunc and stores results as keys in a map.
-// This combines transformation and set creation in a single operation.	-
+// This combines transformation and set creation in a single operation.
 func SliceToSetBy[I any, R comparable](keyfunc func(I) R, slices ...[]I) map[R]struct{} {
 	result := make(map[R]struct{}, sliceTotalSize(slices))
 	SliceIntoSetBy(result, keyfunc, slices...)
@@ -701,6 +701,18 @@ func SliceDifference[T comparable](a, b []T) []T {
 				result = append(result, val)
 			}
 		}
+	}
+	return result
+}
+
+// SlicePrepend creates a new slice with elm at the front followed by elements from existing slices.
+// Performs a single allocation sized exactly for the result, avoiding multiple allocations
+// that would occur with append([]T{elm}, existing...).
+func SlicePrepend[T any](elm T, existing ...[]T) []T {
+	result := make([]T, 1, sliceTotalSize(existing)+1)
+	result[0] = elm
+	for _, slice := range existing {
+		result = append(result, slice...)
 	}
 	return result
 }

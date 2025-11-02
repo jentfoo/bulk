@@ -3576,3 +3576,99 @@ func TestSliceConcat(t *testing.T) {
 		assert.GreaterOrEqual(t, cap(result), 4) // should have sufficient capacity
 	})
 }
+
+func TestSlicePrepend(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		elem     int
+		slices   [][]int
+		expected []int
+	}{
+		{
+			name:     "no_slices",
+			elem:     1,
+			slices:   nil,
+			expected: []int{1},
+		},
+		{
+			name:     "empty_slices",
+			elem:     1,
+			slices:   [][]int{},
+			expected: []int{1},
+		},
+		{
+			name:     "single_empty_slice",
+			elem:     1,
+			slices:   [][]int{{}},
+			expected: []int{1},
+		},
+		{
+			name:     "single_nil_slice",
+			elem:     1,
+			slices:   [][]int{nil},
+			expected: []int{1},
+		},
+		{
+			name:     "single_slice",
+			elem:     0,
+			slices:   [][]int{{1, 2, 3}},
+			expected: []int{0, 1, 2, 3},
+		},
+		{
+			name:     "multiple_slices",
+			elem:     0,
+			slices:   [][]int{{1, 2}, {3, 4}, {5}},
+			expected: []int{0, 1, 2, 3, 4, 5},
+		},
+		{
+			name:     "multiple_slices_with_empty",
+			elem:     99,
+			slices:   [][]int{{1}, {}, {2, 3}},
+			expected: []int{99, 1, 2, 3},
+		},
+		{
+			name:     "mixed_nil_and_non_nil",
+			elem:     42,
+			slices:   [][]int{nil, {1, 2}, nil, {3}},
+			expected: []int{42, 1, 2, 3},
+		},
+		{
+			name:     "prepend_to_large_slice",
+			elem:     -1,
+			slices:   [][]int{sliceLargeInput},
+			expected: append([]int{-1}, sliceLargeInput...),
+		},
+	}
+
+	for i, tt := range tests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := SlicePrepend(tt.elem, tt.slices...)
+			assert.Equal(t, tt.expected, result)
+			// Verify exact allocation size
+			assert.Equal(t, len(tt.expected), len(result))
+			assert.Equal(t, len(tt.expected), cap(result))
+		})
+	}
+
+	// Test with different types
+	t.Run("string_type", func(t *testing.T) {
+		result := SlicePrepend("first", []string{"second", "third"}, []string{"fourth"})
+		expected := []string{"first", "second", "third", "fourth"}
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("struct_type", func(t *testing.T) {
+		type person struct {
+			name string
+			age  int
+		}
+		p1 := person{"Alice", 30}
+		p2 := person{"Bob", 25}
+		p3 := person{"Charlie", 35}
+		result := SlicePrepend(p1, []person{p2}, []person{p3})
+		expected := []person{p1, p2, p3}
+		assert.Equal(t, expected, result)
+	})
+}
