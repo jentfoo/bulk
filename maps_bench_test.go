@@ -1,8 +1,6 @@
 package bulk
 
 import (
-	"maps"
-	"slices"
 	"strconv"
 	"testing"
 )
@@ -58,13 +56,13 @@ func BenchmarkMapKeysSlice(b *testing.B) {
 	}
 	b.ResetTimer()
 
-	b.Run("small-slices", func(b *testing.B) {
+	/*b.Run("small-slices", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range smallTestMaps {
 				_ = slices.Collect(maps.Keys(m))
 			}
 		}
-	})
+	})*/
 	b.Run("small-bulk", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range smallTestMaps {
@@ -72,13 +70,13 @@ func BenchmarkMapKeysSlice(b *testing.B) {
 			}
 		}
 	})
-	b.Run("med-slices", func(b *testing.B) {
+	/*b.Run("med-slices", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range medTestMaps {
 				_ = slices.Collect(maps.Keys(m))
 			}
 		}
-	})
+	})*/
 	b.Run("med-bulk", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range medTestMaps {
@@ -86,13 +84,13 @@ func BenchmarkMapKeysSlice(b *testing.B) {
 			}
 		}
 	})
-	b.Run("large-slices", func(b *testing.B) {
+	/*b.Run("large-slices", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range largeTestMaps {
 				_ = slices.Collect(maps.Keys(m))
 			}
 		}
-	})
+	})*/
 	b.Run("large-bulk", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			for _, m := range largeTestMaps {
