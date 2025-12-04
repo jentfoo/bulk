@@ -255,3 +255,138 @@ func TestMapInvertInto(t *testing.T) {
 		assert.Equal(t, expected, existing)
 	})
 }
+
+var mapKeyValueSliceTests = []struct {
+	name           string
+	input          map[int]string
+	expectedKeys   []int
+	expectedValues []string
+}{
+	{
+		name:           "nil",
+		input:          nil,
+		expectedKeys:   []int{},
+		expectedValues: []string{},
+	},
+	{
+		name:           "empty",
+		input:          map[int]string{},
+		expectedKeys:   []int{},
+		expectedValues: []string{},
+	},
+	{
+		name:           "single_pair",
+		input:          map[int]string{1: "one"},
+		expectedKeys:   []int{1},
+		expectedValues: []string{"one"},
+	},
+	{
+		name:           "multiple_pairs",
+		input:          map[int]string{1: "one", 2: "two", 3: "three"},
+		expectedKeys:   []int{1, 2, 3},
+		expectedValues: []string{"one", "two", "three"},
+	},
+	{
+		name:           "zero_key",
+		input:          map[int]string{0: "zero", 1: "one"},
+		expectedKeys:   []int{0, 1},
+		expectedValues: []string{"zero", "one"},
+	},
+	{
+		name:           "negative_keys",
+		input:          map[int]string{-1: "negative", 0: "zero", 1: "positive"},
+		expectedKeys:   []int{-1, 0, 1},
+		expectedValues: []string{"negative", "zero", "positive"},
+	},
+	{
+		name:           "large_numbers",
+		input:          map[int]string{1000000: "million", 2000000: "two_million"},
+		expectedKeys:   []int{1000000, 2000000},
+		expectedValues: []string{"million", "two_million"},
+	},
+	{
+		name:           "empty_string_value",
+		input:          map[int]string{1: "", 2: "two"},
+		expectedKeys:   []int{1, 2},
+		expectedValues: []string{"", "two"},
+	},
+	{
+		name:           "unicode_values",
+		input:          map[int]string{1: "café", 2: "naïve", 3: "résumé"},
+		expectedKeys:   []int{1, 2, 3},
+		expectedValues: []string{"café", "naïve", "résumé"},
+	},
+	{
+		name:           "special_characters",
+		input:          map[int]string{1: "hello world", 2: "test@example.com", 3: "special!@#$%"},
+		expectedKeys:   []int{1, 2, 3},
+		expectedValues: []string{"hello world", "test@example.com", "special!@#$%"},
+	},
+	{
+		name:           "duplicate_values",
+		input:          map[int]string{1: "same", 2: "same", 3: "same"},
+		expectedKeys:   []int{1, 2, 3},
+		expectedValues: []string{"same", "same", "same"},
+	},
+}
+
+func TestMapKeysSlice(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range mapKeyValueSliceTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := MapKeysSlice(tt.input)
+			assert.Len(t, result, len(tt.expectedKeys))
+			assert.ElementsMatch(t, tt.expectedKeys, result)
+			assert.Equal(t, len(result), cap(result))
+		})
+	}
+
+	t.Run("struct", func(t *testing.T) {
+		type Point struct{ X, Y int }
+		input := map[Point]string{{1, 2}: "first", {3, 4}: "second"}
+		result := MapKeysSlice(input)
+		expected := []Point{{1, 2}, {3, 4}}
+		assert.Len(t, result, len(expected))
+		assert.ElementsMatch(t, expected, result)
+	})
+}
+
+func TestMapValuesSlice(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range mapKeyValueSliceTests {
+		t.Run(strconv.Itoa(i)+"-"+tt.name, func(t *testing.T) {
+			result := MapValuesSlice(tt.input)
+			assert.Len(t, result, len(tt.expectedValues))
+			assert.ElementsMatch(t, tt.expectedValues, result)
+			assert.Equal(t, len(result), cap(result))
+		})
+	}
+
+	t.Run("struct", func(t *testing.T) {
+		type Point struct{ X, Y int }
+		input := map[string]Point{"first": {1, 2}, "second": {3, 4}}
+		result := MapValuesSlice(input)
+		expected := []Point{{1, 2}, {3, 4}}
+		assert.Len(t, result, len(expected))
+		assert.ElementsMatch(t, expected, result)
+	})
+
+	t.Run("slice", func(t *testing.T) {
+		input := map[string][]int{"a": {1, 2}, "b": {3, 4}}
+		result := MapValuesSlice(input)
+		assert.Len(t, result, 2)
+		// Can't use ElementsMatch directly on [][]int, so check contents
+		found := make(map[string]bool)
+		for _, v := range result {
+			if len(v) == 2 && v[0] == 1 && v[1] == 2 {
+				found["a"] = true
+			} else if len(v) == 2 && v[0] == 3 && v[1] == 4 {
+				found["b"] = true
+			}
+		}
+		assert.True(t, found["a"])
+		assert.True(t, found["b"])
+	})
+}

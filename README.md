@@ -119,7 +119,7 @@ set := bulk.SliceToSet(slice1, slice2)
 
 // Deduplication pattern:
 duplicates := []string{"apple", "banana", "apple", "cherry", "banana"}
-unique := slices.Collect(maps.Keys(bulk.SliceToSet(duplicates)))
+unique := bulk.MapKeySlice(bulk.SliceToSet(duplicates))
 // Result: ["apple", "banana", "cherry"] (order may vary)
 ```
 
