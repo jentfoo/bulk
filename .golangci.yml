@@ -5,6 +5,7 @@ linters:
     - asasalint
     - asciicheck
     - bidichk
+    - containedctx
     - contextcheck
     - decorder
     - durationcheck
@@ -12,6 +13,7 @@ linters:
     - errorlint
     - exptostd
     - fatcontext
+    - forbidigo
     - gocheckcompilerdirectives
     - gochecksumtype
     - goconst
@@ -23,6 +25,8 @@ linters:
     - mirror
     - misspell
     - musttag
+    - nilerr
+    - nilnil
     - perfsprint
     - prealloc
     - reassign
