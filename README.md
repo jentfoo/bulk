@@ -206,6 +206,55 @@ Many operations offer multiple variants - check function signatures for the comp
 
 ---
 
+## store: Key-Value Storage with Disk Paging
+
+The `store` module provides a key-value blob store designed for workloads that reference large amounts of value data. Keys are always kept in memory for fast lookup, while less-accessed values are transparently paged to an ephemeral file on disk to avoid excessive memory usage.
+
+### Installation
+
+```bash
+go get github.com/go-analyze/bulk/store@latest
+```
+
+### Implementations
+
+**`NewMemStore()`** - Pure in-memory store, suitable for small datasets or testing.
+
+**`NewSpillStore(cfg SpillStoreConfig)`** - Hot/cold store that keeps frequently accessed values in memory and spills the rest to a temporary file on disk. Features include:
+- **LRU eviction** to disk when the hot cache exceeds the configured size
+- **ZSTD compression** of spilled data (configurable level)
+- **AES-GCM encryption** of on-disk data with an ephemeral key (enabled by default)
+- **Background compaction** to reclaim dead space in the data file
+- All disk resources are cleaned up on `Close()`
+
+```go
+s, err := store.NewSpillStore(store.DefaultSpillStoreConfig())
+if err != nil { /* handle */ }
+defer s.Close()
+
+_ = s.Set("key", []byte("value"))
+blob, found, err := s.Get("key")
+```
+
+**`KeyPrefixStore(s Storage, prefix string)`** - Wraps any `Storage` to namespace keys under a prefix, allowing multiple logical stores to share one underlying store.
+
+### Storage Interface
+
+```go
+type Storage interface {
+    Set(key string, blob []byte) error
+    Get(key string) ([]byte, bool, error)
+    Delete(key string)
+    DeleteAll()
+    ContainsKey(key string) bool
+    KeySet() []string
+    Size() int
+    Close() error
+}
+```
+
+---
+
 ## When to use `bulk`
 
 * **Large data analyses** where minimizing memory pressure is critical
