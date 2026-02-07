@@ -16,9 +16,9 @@ type Storage interface {
 	// does not exist and (blob, true, nil) on success.
 	Get(key string) ([]byte, bool, error)
 	// Delete removes a single key. No-op if the key does not exist.
-	Delete(key string)
+	Delete(key string) error
 	// DeleteAll removes every key from the store.
-	DeleteAll()
+	DeleteAll() error
 	// ContainsKey reports whether key exists in the store.
 	ContainsKey(key string) bool
 	// KeySet returns all keys currently in the store.
@@ -55,16 +55,20 @@ func (p *prefixStorage) Get(key string) ([]byte, bool, error) {
 	return p.store.Get(p.prefix + key)
 }
 
-func (p *prefixStorage) Delete(key string) {
-	p.store.Delete(p.prefix + key)
+func (p *prefixStorage) Delete(key string) error {
+	return p.store.Delete(p.prefix + key)
 }
 
-func (p *prefixStorage) DeleteAll() {
+func (p *prefixStorage) DeleteAll() error {
+	var errs []error
 	for _, k := range p.store.KeySet() {
 		if strings.HasPrefix(k, p.prefix) {
-			p.store.Delete(k)
+			if err := p.store.Delete(k); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
+	return errors.Join(errs...)
 }
 
 func (p *prefixStorage) ContainsKey(key string) bool {
@@ -94,6 +98,5 @@ func (p *prefixStorage) Size() int {
 // Close removes all keys belonging to this prefix. The caller that created
 // the underlying Storage is responsible for closing it.
 func (p *prefixStorage) Close() error {
-	p.DeleteAll()
-	return nil
+	return p.DeleteAll()
 }

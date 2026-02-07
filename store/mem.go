@@ -54,18 +54,20 @@ func (m *memStore) KeySet() []string {
 	return keys
 }
 
-func (m *memStore) Delete(key string) {
+func (m *memStore) Delete(key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.data, key)
+	return nil
 }
 
-func (m *memStore) DeleteAll() {
+func (m *memStore) DeleteAll() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	clear(m.data)
+	return nil
 }
 
 func (m *memStore) Size() int {
@@ -76,5 +78,5 @@ func (m *memStore) Size() int {
 }
 
 func (m *memStore) Close() error {
-	return nil
+	return m.DeleteAll()
 }

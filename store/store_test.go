@@ -63,7 +63,7 @@ func TestKeyPrefixStorage_Delete(t *testing.T) {
 	ps := KeyPrefixStore(underlying, "ns")
 
 	require.NoError(t, ps.Set("k", []byte("v")))
-	ps.Delete("k")
+	require.NoError(t, ps.Delete("k"))
 
 	assert.False(t, ps.ContainsKey("k"))
 	assert.False(t, underlying.ContainsKey("ns;k"))
@@ -107,7 +107,7 @@ func TestKeyPrefixStorage_DeleteAll(t *testing.T) {
 	require.NoError(t, ps.Set("a", []byte("1")))
 	require.NoError(t, ps.Set("b", []byte("2")))
 
-	ps.DeleteAll()
+	require.NoError(t, ps.DeleteAll())
 
 	assert.Empty(t, ps.KeySet())
 	// underlying key outside prefix should remain
@@ -133,10 +133,10 @@ func TestKeyPrefixStorage_Size(t *testing.T) {
 	// underlying has 3 total, prefix only sees 2
 	assert.Equal(t, 3, underlying.Size())
 
-	ps.Delete("a")
+	require.NoError(t, ps.Delete("a"))
 	assert.Equal(t, 1, ps.Size())
 
-	ps.DeleteAll()
+	require.NoError(t, ps.DeleteAll())
 	assert.Equal(t, 0, ps.Size())
 
 	// underlying still has the non-prefixed key
@@ -189,13 +189,13 @@ func TestKeyPrefixStorage_Isolation(t *testing.T) {
 	assert.Equal(t, []byte("from_b"), gotB)
 
 	// deleting from a should not affect b
-	a.Delete("key")
+	require.NoError(t, a.Delete("key"))
 	assert.False(t, a.ContainsKey("key"))
 	assert.True(t, b.ContainsKey("key"))
 
 	// DeleteAll on b should not affect underlying non-prefixed keys
 	require.NoError(t, underlying.Set("root", []byte("r")))
-	b.DeleteAll()
+	require.NoError(t, b.DeleteAll())
 	assert.Empty(t, b.KeySet())
 	assert.True(t, underlying.ContainsKey("root"))
 }

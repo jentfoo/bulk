@@ -108,7 +108,7 @@ func TestMemStorage_Delete(t *testing.T) {
 	require.NoError(t, s.Set("k", []byte("v")))
 	assert.True(t, s.ContainsKey("k"))
 
-	s.Delete("k")
+	require.NoError(t, s.Delete("k"))
 	assert.False(t, s.ContainsKey("k"))
 
 	got, ok, err := s.Get("k")
@@ -121,8 +121,8 @@ func TestMemStorage_DeleteMissing(t *testing.T) {
 	t.Parallel()
 
 	s := NewMemStore()
-	// should not panic
-	s.Delete("nonexistent")
+	// should not panic or error
+	require.NoError(t, s.Delete("nonexistent"))
 }
 
 func TestMemStorage_KeySet(t *testing.T) {
@@ -153,7 +153,7 @@ func TestMemStorage_DeleteAll(t *testing.T) {
 	require.NoError(t, s.Set("a", []byte("1")))
 	require.NoError(t, s.Set("b", []byte("2")))
 
-	s.DeleteAll()
+	require.NoError(t, s.DeleteAll())
 
 	assert.Empty(t, s.KeySet())
 	assert.False(t, s.ContainsKey("a"))
@@ -177,10 +177,10 @@ func TestMemStorage_Size(t *testing.T) {
 	require.NoError(t, s.Set("a", []byte("updated")))
 	assert.Equal(t, 3, s.Size())
 
-	s.Delete("b")
+	require.NoError(t, s.Delete("b"))
 	assert.Equal(t, 2, s.Size())
 
-	s.DeleteAll()
+	require.NoError(t, s.DeleteAll())
 	assert.Equal(t, 0, s.Size())
 }
 

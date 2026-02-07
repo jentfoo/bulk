@@ -61,9 +61,9 @@ func BenchmarkStorage_AddGetRemove(b *testing.B) {
 					_, _, _ = storage.Get(fmt.Sprintf("key-%d", j))
 				}
 				for j := 0; j < benchRecordCount/2; j++ {
-					storage.Delete(fmt.Sprintf("key-%d", j))
+					_ = storage.Delete(fmt.Sprintf("key-%d", j))
 				}
-				storage.DeleteAll()
+				_ = storage.DeleteAll()
 			}
 		})
 	}
@@ -97,7 +97,7 @@ func BenchmarkStorage_ConcurrentAddGetRemove(b *testing.B) {
 								defer wg.Done()
 
 								for j := 0; j < benchRecordCount/2; j++ {
-									storage.Delete(fmt.Sprintf("key-%d", j))
+									_ = storage.Delete(fmt.Sprintf("key-%d", j))
 								}
 							}()
 						}
@@ -106,7 +106,7 @@ func BenchmarkStorage_ConcurrentAddGetRemove(b *testing.B) {
 					}
 				}()
 				wg.Wait()
-				storage.DeleteAll()
+				_ = storage.DeleteAll()
 			}
 		})
 	}

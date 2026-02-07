@@ -65,7 +65,7 @@ func TestSpillStore(t *testing.T) {
 
 		_ = s.Set("key1", []byte("v"))
 
-		s.Delete("key1")
+		require.NoError(t, s.Delete("key1"))
 
 		_, found, _ := s.Get("key1")
 		assert.False(t, found)
@@ -96,7 +96,7 @@ func TestSpillStore(t *testing.T) {
 		_ = s.Set("k1", []byte("v"))
 		_ = s.Set("k2", []byte("v"))
 
-		s.DeleteAll()
+		require.NoError(t, s.DeleteAll())
 
 		keys := s.KeySet()
 		assert.Empty(t, keys)
@@ -257,8 +257,8 @@ func TestSpillStore(t *testing.T) {
 		require.NoError(t, err)
 		_ = s.Close()
 
-		// should not panic
-		s.Delete("key")
+		err = s.Delete("key")
+		assert.ErrorIs(t, err, ErrClosed)
 	})
 
 	t.Run("contains_key_on_closed", func(t *testing.T) {
@@ -284,8 +284,8 @@ func TestSpillStore(t *testing.T) {
 		require.NoError(t, err)
 		_ = s.Close()
 
-		// should not panic
-		s.DeleteAll()
+		err = s.DeleteAll()
+		assert.ErrorIs(t, err, ErrClosed)
 	})
 
 	t.Run("size", func(t *testing.T) {
@@ -306,10 +306,10 @@ func TestSpillStore(t *testing.T) {
 		require.NoError(t, s.Set("a", []byte("updated")))
 		assert.Equal(t, 3, s.Size())
 
-		s.Delete("b")
+		require.NoError(t, s.Delete("b"))
 		assert.Equal(t, 2, s.Size())
 
-		s.DeleteAll()
+		require.NoError(t, s.DeleteAll())
 		assert.Equal(t, 0, s.Size())
 	})
 
@@ -526,8 +526,8 @@ func TestSpillStore_Compaction(t *testing.T) {
 	s.wg.Wait() // Wait for eviction to complete
 
 	// Delete some entries to create dead space
-	s.Delete("keya")
-	s.Delete("keyb")
+	require.NoError(t, s.Delete("keya"))
+	require.NoError(t, s.Delete("keyb"))
 
 	// Get remaining entries to trigger compaction
 	for i := 2; i < 5; i++ {
@@ -663,7 +663,7 @@ func TestSpillStore_ConcurrentAccess(t *testing.T) {
 				case 2:
 					_ = s.KeySet()
 				case 3:
-					s.Delete(key)
+					_ = s.Delete(key)
 				case 4:
 					_ = s.ContainsKey(key)
 				}
@@ -742,8 +742,8 @@ func TestSpillStore_CleanEntries(t *testing.T) {
 		s.mu.Unlock()
 
 		// Delete some fillers to make room, then add new ones to trigger eviction of key1
-		s.Delete("fillera")
-		s.Delete("fillerb")
+		require.NoError(t, s.Delete("fillera"))
+		require.NoError(t, s.Delete("fillerb"))
 		for i := 0; i < 3; i++ {
 			_ = s.Set("filler2_"+string(rune('a'+i)), make([]byte, 100))
 		}
@@ -903,7 +903,7 @@ func TestSpillStore_CleanEntries(t *testing.T) {
 		for i := 0; i < 4; i++ {
 			key := "key" + string(rune('a'+i))
 			if key != diskKey {
-				s.Delete(key)
+				require.NoError(t, s.Delete(key))
 			}
 		}
 
@@ -948,7 +948,7 @@ func TestSpillStore_CleanEntries(t *testing.T) {
 		s.mu.Unlock()
 
 		// Delete clean entry
-		s.Delete("key1")
+		require.NoError(t, s.Delete("key1"))
 
 		// Verify disk space marked dead
 		s.mu.Lock()
@@ -1020,7 +1020,7 @@ func TestSpillStore_CompactionTruncatesEmptyDisk(t *testing.T) {
 
 	// Delete all entries to trigger compaction
 	for i := 0; i < 5; i++ {
-		s.Delete("key" + string(rune('a'+i)))
+		require.NoError(t, s.Delete("key"+string(rune('a'+i))))
 	}
 	s.wg.Wait()
 

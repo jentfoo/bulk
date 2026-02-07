@@ -296,14 +296,18 @@ func (s *spillStore) KeySet() []string {
 	return bulk.MapKeysSlice(s.index)
 }
 
-func (s *spillStore) Delete(key string) {
+func (s *spillStore) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.closed {
+		return ErrClosed
+	}
 
 	delete(s.hotData, key)
 	entry, ok := s.index[key]
 	if !ok {
-		return
+		return nil
 	}
 	delete(s.index, key)
 	if entry.inMemory {
@@ -313,11 +317,16 @@ func (s *spillStore) Delete(key string) {
 		s.deadBytes += int64(entry.diskLen)
 		s.maybeStartCompaction()
 	}
+	return nil
 }
 
-func (s *spillStore) DeleteAll() {
+func (s *spillStore) DeleteAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.closed {
+		return ErrClosed
+	}
 
 	s.index = make(map[string]*spillIndexEntry)
 	s.hotData = make(map[string][]byte)
@@ -326,10 +335,9 @@ func (s *spillStore) DeleteAll() {
 
 	// Truncate data file. Always reset fileSize since the index is already
 	// cleared and no entries reference the old file data.
-	if err := s.dataFile.Truncate(spillHeaderSize); err != nil {
-		log.Printf("spill: truncate error: %v", err)
-	}
+	err := s.dataFile.Truncate(spillHeaderSize)
 	s.fileSize = spillHeaderSize
+	return err
 }
 
 func (s *spillStore) Size() int {
@@ -350,7 +358,17 @@ func (s *spillStore) Close() error {
 
 	s.wg.Wait() // Wait for background goroutines to finish before closing resources
 
-	s.DeleteAll()
+	// Clear in-memory state
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.index = make(map[string]*spillIndexEntry)
+	s.hotData = make(map[string][]byte)
+	s.hotBytes = 0
+	s.deadBytes = 0
+	// Zero encryption key
+	for i := range s.encKey {
+		s.encKey[i] = 0
+	}
 
 	if s.zstdEncoder != nil {
 		_ = s.zstdEncoder.Close()
@@ -361,16 +379,9 @@ func (s *spillStore) Close() error {
 
 	_ = s.dataFile.Close()
 	if s.ownTempDir {
-		_ = os.RemoveAll(s.dataDir)
-	} else {
-		_ = os.Remove(filepath.Join(s.dataDir, spillDataFile))
+		return os.RemoveAll(s.dataDir)
 	}
-
-	// Zero encryption key
-	for i := range s.encKey {
-		s.encKey[i] = 0
-	}
-	return nil
+	return os.Remove(filepath.Join(s.dataDir, spillDataFile))
 }
 
 // maybeStartEviction spawns eviction goroutine if needed and not already running.
