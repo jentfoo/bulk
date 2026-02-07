@@ -3,6 +3,8 @@ package store
 import (
 	"errors"
 	"strings"
+
+	"github.com/go-analyze/bulk"
 )
 
 // ErrClosed is returned when an operation is attempted on a closed Storage.
@@ -76,13 +78,9 @@ func (p *prefixStorage) ContainsKey(key string) bool {
 }
 
 func (p *prefixStorage) KeySet() []string {
-	var result []string
-	for _, k := range p.store.KeySet() {
-		if strings.HasPrefix(k, p.prefix) {
-			result = append(result, strings.TrimPrefix(k, p.prefix))
-		}
-	}
-	return result
+	return bulk.SliceFilter(func(k string) bool {
+		return strings.HasPrefix(k, p.prefix)
+	}, p.store.KeySet())
 }
 
 func (p *prefixStorage) Size() int {
@@ -95,8 +93,7 @@ func (p *prefixStorage) Size() int {
 	return result
 }
 
-// Close removes all keys belonging to this prefix. The caller that created
-// the underlying Storage is responsible for closing it.
+// Close is a no-op. The caller that created the underlying Storage is responsible for closing it.
 func (p *prefixStorage) Close() error {
-	return p.DeleteAll()
+	return nil
 }
